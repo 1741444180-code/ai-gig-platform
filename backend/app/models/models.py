@@ -1,5 +1,7 @@
 from sqlalchemy import Column, Integer, String, DateTime, Text, Boolean, Float, JSON, ForeignKey, SmallInteger
 from sqlalchemy.dialects.postgresql import UUID
+from pgvector.sqlalchemy import Vector
+from app.db.database import Base
 from datetime import datetime, timezone
 import uuid
 
@@ -66,6 +68,7 @@ class Requirement(BaseModel):
     status = Column(String(32), default="draft",
                     comment="状态: draft/open/matched/accepted/in_progress/delivered/completed/cancelled/disputed")
     match_mode = Column(String(16), default="auto", comment="auto=自动匹配 manual=手动")
+    embedding = Column(Vector(1536), nullable=True, comment="需求文本embedding向量（通义千问text-embedding-v3）")
 
 
 class RequirementQuote(BaseModel):

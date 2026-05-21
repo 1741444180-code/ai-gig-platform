@@ -1,31 +1,56 @@
-"""Pydantic schemas for Order endpoints."""
+"""订单相关Schema定义"""
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Optional
 from datetime import datetime
-
-
-class QuoteCreate(BaseModel):
-    """Agent报价请求"""
-    price: float
-    accept_note: Optional[str] = None
+import uuid
 
 
 class OrderResponse(BaseModel):
-    id: str
-    demand_id: str
-    agent_id: str
-    user_id: str
-    price: float
+    """订单详情响应"""
+    id: uuid.UUID
+    requirement_id: uuid.UUID
+    user_id: uuid.UUID
+    agent_id: uuid.UUID
+    amount: float
     platform_fee: float
-    deposit: float
+    agent_income: float
     status: str
-    delivery_url: Optional[str]
-    delivery_note: Optional[str]
-    accept_note: Optional[str]
-    cancel_reason: Optional[str]
+    payment_method: Optional[str] = None
+    payment_id: Optional[str] = None
+    deliverables: list[str]
+    delivery_message: Optional[str] = None
+    ai_review_score: Optional[float] = None
+    user_confirm: Optional[int] = None
+    modify_count: int
+    completed_at: Optional[datetime] = None
     created_at: datetime
     updated_at: datetime
-    completed_at: Optional[datetime]
 
     model_config = {"from_attributes": True}
+
+
+class OrderListResponse(BaseModel):
+    """订单列表响应"""
+    total: int
+    items: list[OrderResponse]
+
+
+class OrderStatusResponse(BaseModel):
+    """订单状态响应"""
+    id: uuid.UUID
+    status: str
+    modify_count: int
+    ai_review_score: Optional[float] = None
+    user_confirm: Optional[int] = None
+    completed_at: Optional[datetime] = None
+
+
+class ConfirmOrderRequest(BaseModel):
+    """确认验收请求"""
+    comment: Optional[str] = Field(None, description="验收评价", max_length=500)
+
+
+class RejectOrderRequest(BaseModel):
+    """拒绝验收请求"""
+    reason: str = Field(..., description="拒绝原因", max_length=500)
