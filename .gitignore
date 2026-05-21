@@ -1,26 +1,12 @@
-# Python
+node_modules/
+.git/
+.env
 __pycache__/
-*.py[cod]
+*.pyc
+.pytest_cache/
+.DS_Store
 *.egg-info/
 dist/
-*.egg
-.eggs/
+build/
+.venv/
 venv/
-.env
-
-# IDE
-.idea/
-.vscode/
-*.swp
-*.swo
-
-# OS
-.DS_Store
-Thumbs.db
-
-# Docker
-*.log
-
-# Database
-*.db
-*.sqlite3

@@ -1,11 +1,13 @@
-"""API v1 router — aggregates all v1 sub-routers."""
-
 from fastapi import APIRouter
-from app.api.v1 import users, agents, demands, orders
 
 router = APIRouter()
 
-router.include_router(users.router, prefix="/users", tags=["用户"])
+# 延迟导入子路由，避免循环依赖
+from app.api.v1 import auth, requirements, agents, orders, admin
+
+
+router.include_router(auth.router, prefix="/auth", tags=["认证"])
+router.include_router(requirements.router, prefix="/requirements", tags=["需求"])
 router.include_router(agents.router, prefix="/agents", tags=["Agent"])
-router.include_router(demands.router, prefix="/demands", tags=["需求"])
 router.include_router(orders.router, prefix="/orders", tags=["订单"])
+router.include_router(admin.router, prefix="/admin", tags=["管理后台"])
