@@ -19,7 +19,7 @@ from app.schemas.requirement import (
     QuoteResponse,
     MatchResponse,
 )
-from app.services.ai_service import structure_requirement, generate_embedding, match_agents
+from app.services.ai_service import structure_requirement, generate_embedding, match_agents, match_agents_hybrid
 
 logger = logging.getLogger(__name__)
 
@@ -118,6 +118,27 @@ async def create_requirement(
     db.add(requirement)
     await db.flush()
     await db.refresh(requirement)
+
+    # 自动撮合：match_mode == "auto" 时立即触发
+    if requirement.match_mode == "auto":
+        try:
+            matches = await match_agents_hybrid(db, requirement)
+            if matches:
+                requirement.status = "matched"
+                # 将匹配结果存入 structured_data
+                if requirement.structured_data is None:
+                    requirement.structured_data = {}
+                requirement.structured_data["matched_agents"] = matches
+                await db.flush()
+                logger.info(
+                    f"自动撮合完成，需求 {requirement.id} 状态变更为 matched，"
+                    f"找到 {len(matches)} 个匹配Agent"
+                )
+            else:
+                logger.info(f"自动撮合完成但未找到匹配Agent，需求 {requirement.id} 保持 open")
+        except Exception as e:
+            # AI撮合失败不影响需求创建
+            logger.warning(f"需求 {requirement.id} 自动撮合失败（不影响发布）: {e}")
 
     logger.info(f"用户 {current_user.id} 发布需求: {requirement.id}")
     return RequirementResponse.model_validate(requirement)
@@ -348,8 +369,13 @@ async def match_requirement(
                 detail="无法生成需求向量，请检查AI服务配置",
             )
 
-    # 执行向量匹配
-    matches = await match_agents(db, requirement.embedding, limit)
+    # 执行混合匹配（规则 + 向量）
+    matches = await match_agents_hybrid(db, requirement, limit)
+
+    # 记录匹配结果到 structured_data
+    if requirement.structured_data is None:
+        requirement.structured_data = {}
+    requirement.structured_data["matched_agents"] = matches
 
     # 更新需求状态
     if matches:
@@ -360,6 +386,43 @@ async def match_requirement(
         "requirement_id": str(requirement.id),
         "match_count": len(matches),
         "matches": matches,
+    }
+
+
+# ==================== 7. 需求预览（AI 结构化确认） ====================
+
+@router.post(
+    "/preview",
+    summary="需求预览（AI 结构化确认）",
+)
+async def preview_requirement(
+    req_data: RequirementCreate,
+    current_user: User = Depends(get_current_active_user),
+):
+    """需求发布前的预览确认
+
+    调用 AI 进行需求结构化分析，返回结构化结果供用户确认。
+    用户可以修改后再正式发布。
+
+    需 Bearer token 认证。
+    不创建数据库记录，仅返回 AI 分析结果。
+    """
+    # 1. AI 结构化分析
+    structured = await structure_requirement(req_data.description)
+
+    # 2. 尝试生成 embedding
+    embedding = await generate_embedding(req_data.description)
+
+    return {
+        "title": req_data.title,
+        "description": req_data.description,
+        "category": structured.get("category", "其他"),
+        "tags": structured.get("tags", []),
+        "suggested_budget": structured.get("suggested_budget", req_data.budget),
+        "urgency": structured.get("urgency", req_data.urgency),
+        "has_embedding": embedding is not None,
+        "structured_data": structured,
+        "message": "请确认以上 AI 分析结果，确认后再正式发布",
     }
 
 

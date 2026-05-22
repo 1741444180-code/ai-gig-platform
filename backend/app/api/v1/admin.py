@@ -6,7 +6,7 @@ from sqlalchemy import select, func
 
 from app.core.security import get_current_active_user
 from app.db.database import get_db
-from app.models.models import User, Requirement, Order, Review, Payment
+from app.models.models import User, Requirement, Order, Review, Payment, WebhookLog
 
 router = APIRouter()
 
@@ -165,6 +165,56 @@ async def admin_list_requirements(
                 "created_at": r.created_at.isoformat() if r.created_at else None,
             }
             for r in requirements
+        ],
+        "total": total,
+        "page": page,
+        "page_size": page_size,
+    }
+
+
+@router.get("/webhooks", summary="Webhook 推送记录列表")
+async def admin_list_webhooks(
+    page: int = 1,
+    page_size: int = 20,
+    status: str | None = None,
+    db: AsyncSession = Depends(get_db),
+    _admin: User = Depends(_get_current_admin_user),
+):
+    """分页查看 Webhook 推送记录，支持按 status 过滤"""
+    offset = (page - 1) * page_size
+
+    base_where = WebhookLog.status == status if status else True
+
+    total_result = await db.execute(
+        select(func.count()).select_from(WebhookLog).where(base_where)
+    )
+    total = total_result.scalar() or 0
+
+    result = await db.execute(
+        select(WebhookLog)
+        .where(base_where)
+        .order_by(WebhookLog.created_at.desc())
+        .offset(offset)
+        .limit(page_size)
+    )
+    logs = result.scalars().all()
+
+    return {
+        "webhooks": [
+            {
+                "id": str(w.id),
+                "agent_id": str(w.agent_id),
+                "event_type": w.event_type,
+                "order_id": str(w.order_id) if w.order_id else None,
+                "webhook_url": w.webhook_url,
+                "status": w.status,
+                "attempts": w.attempts,
+                "last_error": w.last_error,
+                "idempotency_key": w.idempotency_key,
+                "response_code": w.response_code,
+                "created_at": w.created_at.isoformat() if w.created_at else None,
+            }
+            for w in logs
         ],
         "total": total,
         "page": page,

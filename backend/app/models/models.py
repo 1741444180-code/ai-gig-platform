@@ -167,3 +167,22 @@ class Payment(BaseModel):
     status = Column(String(20), default="pending", comment="pending/paid/refunded/released/manual_confirmed")
     type = Column(String(20), nullable=False, comment="payment/refund/release")
     raw_response = Column(JSON, default=dict, comment="支付平台原始响应JSON")
+
+
+# ==================== Webhook 推送记录 ====================
+
+class WebhookLog(BaseModel):
+    """Webhook 推送记录表"""
+    __tablename__ = "webhook_logs"
+
+    agent_id = Column(UUID(as_uuid=True), ForeignKey("agent_profiles.user_id"), nullable=False)
+    event_type = Column(String(32), nullable=False, comment="demand_pushed / order_status_changed / etc")
+    order_id = Column(UUID(as_uuid=True), nullable=True, comment="关联订单/需求 ID")
+    webhook_url = Column(String(512), nullable=False)
+    payload = Column(JSON, default=dict, comment="推送数据")
+    status = Column(String(16), default="pending", comment="pending/success/failed")
+    attempts = Column(Integer, default=0)
+    last_error = Column(Text, nullable=True)
+    idempotency_key = Column(String(64), nullable=True, comment="幂等性 Key")
+    response_code = Column(Integer, nullable=True)
+    response_body = Column(Text, nullable=True)

@@ -2,6 +2,7 @@
 
 import json
 import logging
+from decimal import Decimal
 from typing import Optional
 
 from sqlalchemy import text
@@ -212,3 +213,113 @@ async def match_agents(
 
     logger.info(f"智能撮合完成，找到 {len(matches)} 个匹配Agent")
     return matches
+
+
+# ==================== 智能撮合（规则 + 向量混合） ====================
+
+async def match_agents_hybrid(
+    db: AsyncSession,
+    requirement: "Requirement",
+    limit: int = 10,
+) -> list[dict]:
+    """综合规则匹配和向量匹配的撮合引擎（MVP-Minimal 版本）
+
+    匹配逻辑：
+    - 规则匹配（60%）：从需求的 category 和 tags 出发，与每个 Agent 的 tags 做交集
+      matched_ratio = len(交集) / max(len(需求tags), 1)
+      category_bonus = 0.3（需求 category 包含在 Agent tags 中时）
+      rule_score = min(matched_ratio + category_bonus, 1.0)
+    - 向量匹配（40%）：调用 match_agents() 获取 cosine distance
+      vector_score = 1 - distance（无 embedding 时 vector_score = 0）
+    - total_score = rule_score * 0.6 + vector_score * 0.4
+
+    Args:
+        db: 数据库会话
+        requirement: Requirement 模型实例，包含 category、tags、embedding
+        limit: 返回 Top N 结果
+
+    Returns:
+        匹配结果列表，包含 agent_id, agent_name, match_type, 各项分数及 matched_tags
+    """
+    from app.models.models import AgentProfile
+
+    # ---------- 获取所有活跃的 Agent ----------
+    stmt = select(AgentProfile).where(AgentProfile.status == 1)
+    result = await db.execute(stmt)
+    agents = result.scalars().all()
+
+    if not agents:
+        logger.info("无活跃 Agent，撮合结果为空")
+        return []
+
+    req_tags = requirement.tags or []
+    req_category = requirement.category or ""
+    req_embedding = requirement.embedding
+
+    # ---------- 规则匹配 ----------
+    agent_scores: dict[str, dict] = {}
+    for agent in agents:
+        agent_tags = set(agent.tags or [])
+        req_tags_set = set(req_tags)
+
+        matched = req_tags_set & agent_tags
+        matched_ratio = len(matched) / max(len(req_tags_set), 1)
+
+        # 类别加分：需求类别在 Agent tags 中
+        category_bonus = 0.3 if req_category and req_category in agent_tags else 0.0
+
+        rule_score = min(matched_ratio + category_bonus, 1.0)
+
+        agent_scores[str(agent.user_id)] = {
+            "agent_id": str(agent.user_id),
+            "agent_name": agent.name,
+            "matched_tags": list(matched),
+            "rule_score": round(rule_score, 2),
+            "vector_score": 0.0,  # 待填充
+        }
+
+    # ---------- 向量匹配（有 embedding 时执行） ----------
+    has_embedding = req_embedding is not None
+
+    if has_embedding and len(req_embedding) == 1536:
+        try:
+            vector_matches = await match_agents(db, req_embedding, limit=50)
+            for vm in vector_matches:
+                agent_id = vm["agent_id"]
+                if agent_id in agent_scores:
+                    # cosine distance 转 0-1 分数
+                    agent_scores[agent_id]["vector_score"] = round(
+                        1.0 - float(vm["similarity"]), 2
+                    )
+        except Exception as e:
+            logger.warning(f"向量匹配降级（规则匹配不受影响）: {e}")
+            has_embedding = False
+
+    # 无 embedding 时所有 vector_score 保持 0
+
+    # ---------- 综合评分并排序 ----------
+    results = []
+    for aid, scores in agent_scores.items():
+        rule_score = scores["rule_score"]
+        vector_score = scores["vector_score"]
+        total_score = round(rule_score * 0.6 + vector_score * 0.4, 2)
+
+        if has_embedding:
+            match_type = "hybrid"
+        elif rule_score > 0:
+            match_type = "rule"
+        else:
+            match_type = "none"  # 无任何匹配
+
+        results.append({
+            "agent_id": scores["agent_id"],
+            "agent_name": scores["agent_name"],
+            "match_type": match_type,
+            "rule_score": rule_score,
+            "vector_score": vector_score,
+            "total_score": total_score,
+            "matched_tags": scores["matched_tags"],
+        })
+
+    results.sort(key=lambda x: x["total_score"], reverse=True)
+    return results[:limit]
