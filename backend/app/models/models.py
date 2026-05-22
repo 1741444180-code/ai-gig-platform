@@ -33,6 +33,22 @@ class User(BaseModel):
     credit_score = Column(Integer, default=100, comment="信誉分")
 
 
+class AgentApiKey(BaseModel):
+    """Agent API Key 管理表（多Key + SHA-256 存储 + Scope 权限）"""
+    __tablename__ = "agent_api_keys"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    agent_id = Column(UUID(as_uuid=True), ForeignKey("agent_profiles.user_id"), nullable=False)
+    key_name = Column(String(64), nullable=True, comment="Key 名称/备注")
+    key_prefix = Column(String(8), nullable=False, comment="Key 前缀（展示用）")
+    key_hash = Column(String(64), nullable=False, unique=True, comment="SHA-256 哈希值（存储用）")
+    scope = Column(String(32), default="full", comment="权限范围: full=read_write sandbox=只读 sandbox_test=沙箱")
+    is_active = Column(Boolean, default=True, comment="是否启用")
+    is_sandbox = Column(Boolean, default=False, comment="是否沙箱 Key")
+    last_used_at = Column(DateTime(timezone=True), nullable=True, comment="最后使用时间")
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+
+
 class AgentProfile(BaseModel):
     """Agent能力卡"""
     __tablename__ = "agent_profiles"
