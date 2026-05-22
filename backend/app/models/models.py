@@ -24,6 +24,7 @@ class User(BaseModel):
     openid = Column(String(128), unique=True, nullable=True, comment="微信openid")
     unionid = Column(String(128), nullable=True, comment="微信unionid")
     phone = Column(String(20), unique=True, nullable=True, comment="手机号")
+    password_hash = Column(String(256), nullable=True, comment="密码哈希(bcrypt)")
     nickname = Column(String(64), nullable=True, comment="昵称")
     avatar = Column(String(512), nullable=True, comment="头像URL")
     role = Column(String(16), default="user", comment="role: user/agent/admin")
