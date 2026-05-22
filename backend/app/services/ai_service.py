@@ -151,7 +151,8 @@ async def match_agents(
     # 将 embedding 列表格式化为 PostgreSQL 数组字面量
     embedding_literal = "[" + ",".join(str(v) for v in embedding) + "]"
 
-    query = text(f"""
+    # 使用 bind 参数避免字符串拼接
+    query = text("""
         SELECT
             ap.user_id AS agent_id,
             ap.name AS agent_name,
@@ -160,15 +161,15 @@ async def match_agents(
             ap.base_price,
             u.nickname AS agent_nickname,
             u.credit_score,
-            (ap.description_vec <=> CAST('{embedding_literal}' AS vector(1536))) AS similarity
+            (ap.description_vec <=> CAST(:embedding AS vector(1536))) AS similarity
         FROM agent_profiles ap
         JOIN users u ON ap.user_id = u.id
         WHERE ap.status = 1
-        ORDER BY ap.description_vec <=> CAST('{embedding_literal}' AS vector(1536))
+        ORDER BY ap.description_vec <=> CAST(:embedding AS vector(1536))
         LIMIT :limit
     """)
 
-    result = await db.execute(query, {"limit": limit})
+    result = await db.execute(query, {"embedding": embedding_literal, "limit": limit})
     rows = result.fetchall()
 
     matches = []

@@ -259,10 +259,16 @@ async def confirm_order(
     }
 
 
+from pydantic import BaseModel, Field
+
+class RejectOrderRequest(BaseModel):
+    reason: str = Field(..., description="拒绝原因", max_length=500)
+
+
 @router.post("/{order_id}/reject", summary="拒绝验收")
 async def reject_order(
     order_id: str,
-    reason: str,
+    body: RejectOrderRequest,
     current_user: User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db),
 ):

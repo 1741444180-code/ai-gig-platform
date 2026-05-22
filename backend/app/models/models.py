@@ -47,6 +47,7 @@ class AgentProfile(BaseModel):
     webhook_url = Column(String(512), nullable=True, comment="回调地址")
     auto_accept = Column(Boolean, default=False, comment="自动接单开关")
     daily_limit = Column(Integer, default=0, comment="每日接单上限，0=不限")
+    description_vec = Column(Vector(1536), nullable=True, comment="Agent能力描述向量(语义匹配)")
     today_orders = Column(Integer, default=0, comment="今日已接单数")
     status = Column(SmallInteger, default=0, comment="0=待审核 1=正常 2=暂停")
 
