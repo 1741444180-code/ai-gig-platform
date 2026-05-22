@@ -23,7 +23,8 @@ class User(BaseModel):
 
     openid = Column(String(128), unique=True, nullable=True, comment="微信openid")
     unionid = Column(String(128), nullable=True, comment="微信unionid")
-    phone = Column(String(20), unique=True, nullable=True, comment="手机号")
+    phone = Column(String(20), unique=True, nullable=False, comment="手机号")
+    phone_verified = Column(Boolean, default=False, comment="手机号是否已验证")
     password_hash = Column(String(256), nullable=True, comment="密码哈希(bcrypt)")
     nickname = Column(String(64), nullable=True, comment="昵称")
     avatar = Column(String(512), nullable=True, comment="头像URL")
@@ -31,6 +32,10 @@ class User(BaseModel):
     status = Column(SmallInteger, default=1, comment="1=正常 0=禁用")
     balance = Column(Float, default=0.0, comment="余额")
     credit_score = Column(Integer, default=100, comment="信誉分")
+    # 实名认证预留字段
+    real_name = Column(String(64), nullable=True, comment="实名认证姓名（预留）")
+    real_name_verified = Column(Boolean, default=False, comment="是否已实名认证（预留）")
+    id_card_hash = Column(String(64), nullable=True, comment="身份证号SHA-256哈希（预留，不存明文）")
 
 
 class AgentApiKey(BaseModel):
@@ -186,3 +191,49 @@ class WebhookLog(BaseModel):
     idempotency_key = Column(String(64), nullable=True, comment="幂等性 Key")
     response_code = Column(Integer, nullable=True)
     response_body = Column(Text, nullable=True)
+
+
+# ==================== Agent 类目系统 ====================
+
+class AgentCategory(BaseModel):
+    """Agent 类目定义表"""
+    __tablename__ = "agent_categories"
+
+    name = Column(String(64), nullable=False, unique=True, comment="类目名称，如'文案生成'")
+    code = Column(String(32), nullable=False, unique=True, comment="类目代码，如'copywriting'")
+    description = Column(Text, nullable=True, comment="类目描述")
+    icon = Column(String(256), nullable=True, comment="图标URL")
+    sort_order = Column(Integer, default=0, comment="排序权重")
+    is_active = Column(Boolean, default=True, comment="是否启用")
+
+
+class AgentCategoryRelation(BaseModel):
+    """Agent 与类目的多对多关联表"""
+    __tablename__ = "agent_category_relations"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+
+    agent_id = Column(UUID(as_uuid=True), ForeignKey("agent_profiles.user_id"), nullable=False)
+    category_id = Column(UUID(as_uuid=True), ForeignKey("agent_categories.id"), nullable=False)
+    confidence = Column(Float, default=1.0, comment="Agent在该类目的置信度")
+    price_min = Column(Float, nullable=True, comment="该类目最低接单价")
+    price_max = Column(Float, nullable=True, comment="该类目最高接单价")
+    max_concurrent = Column(Integer, default=5, comment="该类目最大并发数")
+    delivery_hours = Column(Float, nullable=True, comment="该类目预计交付时间(小时)")
+
+
+class AgentShowcase(BaseModel):
+    """Agent 能力展示/双向市场表"""
+    __tablename__ = "agent_showcase"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc),
+                        onupdate=lambda: datetime.now(timezone.utc))
+
+    agent_id = Column(UUID(as_uuid=True), ForeignKey("agent_profiles.user_id"), nullable=False, unique=True)
+    portfolio = Column(JSON, default=list, comment="作品集URL列表")
+    service_description = Column(Text, nullable=True, comment="服务描述（用于展示页）")
+    tags = Column(JSON, default=list, comment="展示标签")
+    rating_display = Column(Boolean, default=True, comment="是否显示评分")
