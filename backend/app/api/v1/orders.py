@@ -320,12 +320,12 @@ async def reject_order(
         if requirement:
             requirement.status = "completed"
 
-        # 信誉分更新
+        # 信誉分更新：超时/达上限自动确认，双方各+5
         await _update_credit_score(
-            order.user_id, db, change=5, reason="完成订单确认验收", order_id=order.id
+            order.user_id, db, change=5, reason="完成订单确认验收（达修改上限）", order_id=order.id
         )
         await _update_credit_score(
-            order.agent_id, db, change=5, reason="完成订单交付", order_id=order.id
+            order.agent_id, db, change=5, reason="完成订单交付（达修改上限）", order_id=order.id
         )
 
         await db.flush()
@@ -340,6 +340,15 @@ async def reject_order(
     # 未超过最大修改次数，退回给Agent重新处理
     order.status = "processing"
     order.user_confirm = 0
+
+    # 拒绝验收视为 Agent 交付质量问题，Agent 信誉分 -2
+    await _update_credit_score(
+        order.agent_id,
+        db,
+        change=-2,
+        reason=f"订单验收被拒绝（第{order.modify_count}次修改）",
+        order_id=order.id,
+    )
 
     await db.flush()
 

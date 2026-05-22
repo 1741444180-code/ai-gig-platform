@@ -1,19 +1,26 @@
 """SQLAlchemy ORM Models."""
 
-from .user import User
-from .agent import Agent
-from .demand import Demand
-from .order import Order
-from .payment import Payment
-from .review import Review
-from .credit_log import CreditLog
+# All models are defined in models.py — unified single source of truth.
+from app.models.models import (
+    BaseModel,
+    User,
+    AgentProfile,
+    AgentApiKey,
+    Requirement,
+    RequirementMatch,
+    Order,
+    Payment,
+    Review,
+    CreditRecord,
+    WebhookLog,
+)
 
 
 def init_db():
     """Create all tables (sync, for startup)."""
     from sqlalchemy import create_engine
     from app.config import settings
-    from app.models.base import Base  # noqa
+    from app.db.database import Base  # noqa
 
     engine_sync = create_engine(settings.database_url_sync, echo=False)
     Base.metadata.create_all(engine_sync)

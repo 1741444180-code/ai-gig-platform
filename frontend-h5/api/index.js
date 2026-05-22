@@ -55,13 +55,13 @@ function request({ url, method = 'GET', data, header = {}, needAuth = false }) {
 export const auth = {
   /** 发送手机验证码 (MVP阶段验证码固定为 123456) */
   sendPhoneCode(phone) {
-    return request({ url: '/phone/send_code', method: 'POST', data: { phone } })
+    return request({ url: '/auth/phone/send_code', method: 'POST', data: { phone } })
   },
 
   /** 手机号登录 */
   phoneLogin(phone, verifyCode) {
     return request({
-      url: '/phone/login',
+      url: '/auth/phone/login',
       method: 'POST',
       data: { phone, verify_code: verifyCode },
     })
@@ -69,31 +69,31 @@ export const auth = {
 
   /** 获取当前用户信息 */
   getMe() {
-    return request({ url: '/me', method: 'GET', needAuth: true })
+    return request({ url: '/auth/me', method: 'GET', needAuth: true })
   },
 
   /** 更新用户信息 */
   updateMe(data) {
-    return request({ url: '/me', method: 'PUT', data, needAuth: true })
+    return request({ url: '/auth/me', method: 'PUT', data, needAuth: true })
   },
 }
 
-// ==================== 需求模块 ====================
+// ==================== 需求模块（后端路径: /requirements/） ====================
 
 export const demands = {
   /** 创建需求 */
   create(data) {
-    return request({ url: '/demands/', method: 'POST', data, needAuth: true })
+    return request({ url: '/requirements/', method: 'POST', data, needAuth: true })
   },
 
   /** 获取需求列表 */
   list(params = {}) {
-    return request({ url: '/demands/', method: 'GET', data: params, needAuth: false })
+    return request({ url: '/requirements/', method: 'GET', data: params, needAuth: false })
   },
 
   /** 获取需求详情 */
   get(id) {
-    return request({ url: `/demands/${id}`, method: 'GET', needAuth: false })
+    return request({ url: `/requirements/${id}`, method: 'GET', needAuth: false })
   },
 }
 

@@ -99,7 +99,7 @@ async def push_demand_to_agent(
                             response_body=last_response_body,
                         )
                         db.add(log_record)
-                        await db.commit()
+                        await db.flush()
                         await db.refresh(log_record)
                         result["log_id"] = str(log_record.id)
                     return result
@@ -148,7 +148,7 @@ async def push_demand_to_agent(
             response_body=last_response_body,
         )
         db.add(log_record)
-        await db.commit()
+        await db.flush()
         await db.refresh(log_record)
         result["log_id"] = str(log_record.id)
 
