@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select, func, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import get_settings
 from app.core.security import get_current_active_user
 from app.db.database import get_db
 from app.models.models import User, Requirement, RequirementQuote, AgentProfile
@@ -18,6 +19,7 @@ from app.schemas.requirement import (
     QuoteCreate,
     QuoteResponse,
     MatchResponse,
+    RequirementStructureResponse,
 )
 from app.services.ai_service import structure_requirement, generate_embedding, match_agents, match_agents_hybrid
 
@@ -387,6 +389,164 @@ async def match_requirement(
         "match_count": len(matches),
         "matches": matches,
     }
+
+
+# ==================== 6b. 需求AI结构化（重新结构化） ====================
+
+_KEYWORD_CATEGORY_MAP = {
+    "文案": "内容生成", "写作": "内容生成", "文章": "内容生成",
+    "图片": "图像设计", "设计": "图像设计", "海报": "图像设计", "logo": "图像设计",
+    "翻译": "翻译", "中英": "翻译", "日": "翻译",
+    "数据": "数据分析", "报表": "数据分析", "可视化": "数据分析", "爬虫": "数据分析",
+    "代码": "代码开发", "开发": "代码开发", "网站": "代码开发",
+    "前端": "代码开发", "后端": "代码开发", "API": "代码开发",
+    "模型": "AI/模型", "LLM": "AI/模型", "训练": "AI/模型", "微调": "AI/模型",
+    "自动化": "自动化", "机器人": "自动化", "流程": "自动化",
+}
+
+
+async def _keyword_fallback(text: str) -> dict:
+    """基于关键词的降级分类逻辑
+
+    无AI API Key时使用，根据文本中的关键词映射到类目。
+    """
+    lower_text = text.lower()
+    matched_categories = []
+    matched_tags = []
+
+    for keyword, category in _KEYWORD_CATEGORY_MAP.items():
+        if keyword.lower() in lower_text:
+            if category not in matched_categories:
+                matched_categories.append(category)
+                matched_tags.append(keyword)
+
+    category = matched_categories[0] if matched_categories else "其他"
+    tags = matched_tags[:5]
+
+    # 简单复杂度评估
+    word_count = len(text)
+    if word_count > 200:
+        complexity = "high"
+        estimated_effort = "complex"
+    elif word_count > 100:
+        complexity = "medium"
+        estimated_effort = "standard"
+    else:
+        complexity = "low"
+        estimated_effort = "quick"
+
+    return {
+        "category": category,
+        "tags": tags,
+        "complexity": complexity,
+        "estimated_effort": estimated_effort,
+        "budget_hint": "high" if complexity == "high" else ("medium" if complexity == "medium" else "low"),
+        "required_skills": tags,
+        "urgency": "normal",
+    }
+
+
+@router.post(
+    "/{req_id}/structure",
+    response_model=RequirementStructureResponse,
+    summary="AI结构化需求（重新结构化）",
+)
+async def structure_requirement_endpoint(
+    req_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+):
+    """对已有需求重新进行AI结构化分析
+
+    需Bearer token认证。
+    仅需求发布者可操作。
+
+    - 调用通义千问API将自由文本转化为结构化JSON
+    - 生成embedding向量（用于撮合匹配）
+    - 更新requirement的structured_data、category、tags
+    - 无API Key时降级到关键词分类
+
+    返回结构化数据 + 推荐价格区间
+    """
+    requirement = await _get_requirement_or_404(req_id, db)
+
+    # 权限校验：仅发布者
+    if requirement.user_id != current_user.id:
+        raise HTTPException(
+            status_code=403,
+            detail="只有需求发布者可以触发结构化分析",
+        )
+
+    # 检查需求描述是否存在
+    if not requirement.description:
+        raise HTTPException(
+            status_code=400,
+            detail="需求描述为空，无法进行结构化分析",
+        )
+
+    is_fallback = False
+
+    # 1. AI结构化分析（有Key用AI，无Key降级）
+    if settings.QWEN_API_KEY:
+        structured = await structure_requirement(requirement.description)
+    else:
+        logger.warning("未配置QWEN_API_KEY，使用关键词降级分类")
+        structured = await _keyword_fallback(requirement.description)
+        is_fallback = True
+
+    # 补充标准化字段（AI返回的结果可能缺少部分字段）
+    complexity = structured.get("complexity", "medium")
+    estimated_effort = structured.get("estimated_effort", "standard")
+    budget_hint = structured.get("budget_hint", "medium")
+    required_skills = structured.get("required_skills", structured.get("tags", []))
+    urgency_ai = structured.get("urgency", "normal")
+
+    # 2. 生成embedding向量
+    embedding = await generate_embedding(requirement.description)
+
+    # 3. 更新需求记录
+    requirement.category = structured.get("category", requirement.category)
+    requirement.tags = structured.get("tags", requirement.tags or [])
+    requirement.structured_data = structured
+    if embedding:
+        requirement.embedding = embedding
+
+    await db.flush()
+    await db.refresh(requirement)
+
+    # 4. 构建价格建议区间
+    suggested_budget = structured.get("suggested_budget", 0)
+    if suggested_budget > 0:
+        budget_min = round(suggested_budget * 0.8, 2)
+        budget_max = round(suggested_budget * 1.2, 2)
+    elif requirement.budget:
+        budget_min = round(requirement.budget * 0.8, 2)
+        budget_max = round(requirement.budget * 1.2, 2)
+    else:
+        budget_min = None
+        budget_max = None
+
+    logger.info(
+        f"用户 {current_user.id} 对需求 {requirement.id} 重新结构化 "
+        f"(降级={'是' if is_fallback else '否'}, embedding={'是' if embedding else '否'})"
+    )
+
+    return RequirementStructureResponse(
+        requirement_id=str(requirement.id),
+        category=requirement.category,
+        tags=requirement.tags,
+        complexity=complexity,
+        estimated_effort=estimated_effort,
+        budget_hint=budget_hint,
+        required_skills=required_skills,
+        urgency=urgency_ai,
+        suggested_budget_min=budget_min,
+        suggested_budget_max=budget_max,
+        structured_data=structured,
+        has_embedding=embedding is not None,
+        is_fallback=is_fallback,
+        message="结构化分析完成" if not is_fallback else "结构化分析完成（关键词降级模式）",
+    )
 
 
 # ==================== 7. 需求预览（AI 结构化确认） ====================

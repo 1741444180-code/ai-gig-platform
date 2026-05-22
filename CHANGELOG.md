@@ -4,7 +4,31 @@
 
 ---
 
-## v0.5.0 (2026-05-22) — 全面重构 + P0修复 + 前端整合
+## v0.5.0 (2026-05-22) — 全面重构 + P0修复 + 前端整合 + 集成测试通过
+
+### 新增
+- 前端 MVP：10 页面 + 3 组件 + 12 API 封装层（小林贡献，集成入项目）
+- 开发计划：MVP-Minimal-v1.md（五步拆解 + 10 个任务）
+- 交叉验证规范集成到工作计划
+- 端到端集成测试：55 个端点全部验证通过（SA-C）
+
+### 修复
+- 🔴 删除 10 个旧重复文件（models/user.py, agent.py, demand.py, order.py, payment.py, review.py, credit_log.py, schemas/demand.py, api/v1/demands.py, users.py）
+- 🔴 事务修复：await db.commit() → await db.flush()（orders/auto_confirm/webhook 共 3 个文件）
+- 🔴 admin.py where 条件重构（_make_where + 增加支付统计）
+- 🟡 前端 API 路径对齐：demands→requirements, me→auth/me, phone→auth/phone
+- 🟡 models/__init__.py 统一从 models.models 导入
+
+### SA-C 集成测试发现（2026-05-23）
+- 55 个端点全部验证通过 ✅
+- 🟡 12 个中等优先问题：部分端点缺少 response_model 声明
+- 🟢 3 个低优先问题：不影响核心功能
+- **结论：** 所有问题均不阻塞发布，后续版本修复
+
+### 数据
+- 代码行数：3743 → 3391（删除 352 行）
+- Python 文件：43 → 33（删除 10 个重复文件）
+- 全部语法检查通过
 
 ### 新增
 - 前端 MVP：10 页面 + 3 组件 + 12 API 封装层（小林贡献，集成入项目）

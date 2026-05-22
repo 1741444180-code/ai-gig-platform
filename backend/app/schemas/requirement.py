@@ -97,3 +97,23 @@ class MatchResponse(BaseModel):
     base_price: Optional[float] = None
     credit_score: int
     similarity: float
+
+
+# ==================== AI 结构化 ====================
+
+class RequirementStructureResponse(BaseModel):
+    """AI 结构化响应"""
+    requirement_id: str
+    category: Optional[str] = None
+    tags: Optional[list] = None
+    complexity: Optional[str] = None
+    estimated_effort: Optional[str] = None
+    budget_hint: Optional[str] = None
+    required_skills: Optional[list] = None
+    urgency: Optional[str] = None
+    suggested_budget_min: Optional[float] = None
+    suggested_budget_max: Optional[float] = None
+    structured_data: Optional[dict] = None
+    has_embedding: bool = False
+    is_fallback: bool = False
+    message: str = "结构化分析完成"
