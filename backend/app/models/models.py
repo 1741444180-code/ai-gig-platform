@@ -135,3 +135,19 @@ class CreditRecord(BaseModel):
     reason = Column(String(256), nullable=False, comment="变化原因")
     before_score = Column(Integer, nullable=False)
     after_score = Column(Integer, nullable=False)
+
+
+# ==================== 支付系统 ====================
+
+class Payment(BaseModel):
+    """支付记录表"""
+    __tablename__ = "payments"
+
+    order_id = Column(UUID(as_uuid=True), ForeignKey("orders.id"), nullable=False)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    amount = Column(Float, nullable=False, comment="支付金额")
+    payment_method = Column(String(32), nullable=True, comment="wechat/alipay/manual")
+    transaction_id = Column(String(128), nullable=True, comment="支付平台交易号")
+    status = Column(String(20), default="pending", comment="pending/paid/refunded/released/manual_confirmed")
+    type = Column(String(20), nullable=False, comment="payment/refund/release")
+    raw_response = Column(JSON, default=dict, comment="支付平台原始响应JSON")

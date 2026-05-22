@@ -6,7 +6,7 @@ from sqlalchemy import select, func
 
 from app.core.security import get_current_active_user
 from app.db.database import get_db
-from app.models.models import User, Requirement, Order, Review
+from app.models.models import User, Requirement, Order, Review, Payment
 
 router = APIRouter()
 
@@ -95,16 +95,16 @@ async def admin_list_orders(
     """分页查看所有订单"""
     offset = (page - 1) * page_size
 
-    base_where = Order.status == status if status else True
+    base_where = [Order.status == status] if status else []
 
     total_result = await db.execute(
-        select(func.count()).select_from(Order).where(base_where)
+        select(func.count()).select_from(Order).where(*base_where) if base_where else select(func.count()).select_from(Order)
     )
     total = total_result.scalar() or 0
 
     result = await db.execute(
         select(Order)
-        .where(base_where)
+        .where(*base_where)
         .order_by(Order.created_at.desc())
         .offset(offset)
         .limit(page_size)

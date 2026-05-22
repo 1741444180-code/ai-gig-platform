@@ -25,6 +25,7 @@ from app.schemas.agent import (
     AcceptOrderRequest,
     SubmitDeliveryRequest,
 )
+from app.services.ai_service import generate_agent_embedding
 
 router = APIRouter()
 
@@ -123,6 +124,15 @@ async def register_agent(
     )
     db.add(profile)
     await db.flush()
+
+    # 生成 Agent 能力描述向量（用于语义匹配）
+    embedding = await generate_agent_embedding(
+        description=request.agent.description,
+        tags=request.agent.tags,
+    )
+    if embedding:
+        profile.description_vec = embedding
+        await db.flush()
 
     return profile
 

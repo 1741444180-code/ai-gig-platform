@@ -129,6 +129,31 @@ async def generate_embedding(text: str) -> Optional[list[float]]:
         return None
 
 
+# ==================== Agent 能力向量生成 ====================
+
+async def generate_agent_embedding(
+    description: str,
+    tags: Optional[list] = None,
+) -> Optional[list[float]]:
+    """为 Agent 能力描述生成 embedding 向量
+
+    将 Agent 的 description + tags 拼接后生成向量，
+    用于与需求向量进行语义匹配。
+
+    Args:
+        description: Agent 能力描述
+        tags: 能力标签列表
+
+    Returns:
+        1536维向量，AI调用失败时返回 None
+    """
+    # 拼接 description + tags 作为 embedding 输入
+    tags_text = " ".join(tags) if tags else ""
+    full_text = f"{description} {tags_text}".strip()
+
+    return await generate_embedding(full_text)
+
+
 # ==================== 智能撮合（pgvector） ====================
 
 async def match_agents(
