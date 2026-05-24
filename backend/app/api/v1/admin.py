@@ -387,6 +387,98 @@ async def admin_dashboard(
     )
 
 
+# ── admin-06: 支付确认管理 ──────────────────────────────────────
+
+from app.models.payment import Payment
+from app.models.withdraw import Withdraw
+
+
+@router.get("/payments")
+async def admin_list_payments(
+    status_filter: Optional[str] = Query(None),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+    db: AsyncSession = Depends(get_db),
+    admin: User = Depends(require_admin),
+):
+    """支付记录管理列表 (admin-06)."""
+    query = select(Payment)
+    if status_filter:
+        query = query.where(Payment.status == status_filter)
+    
+    count_query = select(func.count()).select_from(query.subquery())
+    total_result = await db.execute(count_query)
+    total = total_result.scalar() or 0
+    
+    query = query.order_by(Payment.created_at.desc())
+    query = query.offset((page - 1) * page_size).limit(page_size)
+    result = await db.execute(query)
+    items = result.scalars().all()
+    
+    return {
+        "items": [{
+            "id": p.id,
+            "order_id": p.order_id,
+            "amount": p.amount,
+            "payment_method": p.payment_method,
+            "status": p.status,
+            "type": p.type,
+            "created_at": p.created_at,
+        } for p in items],
+        "total": total,
+        "page": page,
+        "page_size": page_size,
+    }
+
+
+class PaymentConfirmRequest(BaseModel):
+    admin_note: Optional[str] = None
+
+
+@router.post("/payments/{payment_id}/confirm")
+async def admin_confirm_payment(
+    payment_id: str,
+    req: PaymentConfirmRequest = None,
+    db: AsyncSession = Depends(get_db),
+    admin: User = Depends(require_admin),
+):
+    """管理员确认支付 (admin-06)."""
+    result = await db.execute(select(Payment).where(Payment.id == payment_id))
+    payment = result.scalar_one_or_none()
+    if not payment:
+        raise HTTPException(status_code=404, detail="支付记录不存在")
+    if payment.status != "pending":
+        raise HTTPException(status_code=400, detail="仅待确认的支付可确认")
+    
+    payment.status = "paid"
+    payment.updated_at = datetime.now(timezone.utc).replace(tzinfo=None)
+    await db.commit()
+    
+    return {"success": True, "message": "支付已确认"}
+
+
+@router.post("/payments/{payment_id}/reject")
+async def admin_reject_payment(
+    payment_id: str,
+    req: PaymentConfirmRequest = None,
+    db: AsyncSession = Depends(get_db),
+    admin: User = Depends(require_admin),
+):
+    """管理员拒绝支付 (admin-06)."""
+    result = await db.execute(select(Payment).where(Payment.id == payment_id))
+    payment = result.scalar_one_or_none()
+    if not payment:
+        raise HTTPException(status_code=404, detail="支付记录不存在")
+    if payment.status != "pending":
+        raise HTTPException(status_code=400, detail="仅待确认的支付可拒绝")
+    
+    payment.status = "refunded"
+    payment.updated_at = datetime.now(timezone.utc).replace(tzinfo=None)
+    await db.commit()
+    
+    return {"success": True, "message": "支付已拒绝"}
+
+
 # ── 定时任务触发 ─────────────────────────────────────────────────
 
 @router.post("/tasks/run-scheduled")

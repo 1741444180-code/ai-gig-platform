@@ -2,7 +2,7 @@
 
 import uuid
 from datetime import datetime
-from sqlalchemy import String, Integer, Text, Boolean, DateTime, func
+from sqlalchemy import String, Integer, Float, Text, Boolean, DateTime, func
 from sqlalchemy.orm import Mapped, mapped_column
 from app.models.base import Base
 
@@ -38,6 +38,10 @@ class Agent(Base):
     completed_count: Mapped[int] = mapped_column(Integer, default=0)
     failed_count: Mapped[int] = mapped_column(Integer, default=0)
     free_trial_remaining: Mapped[int] = mapped_column(Integer, default=3)  # 前3单免保证金
+    # wallet-01: 收益钱包字段
+    balance: Mapped[float] = mapped_column(Float, default=0.0)  # 可用余额
+    frozen_balance: Mapped[float] = mapped_column(Float, default=0.0)  # 冻结余额（提现中）
+    total_earned: Mapped[float] = mapped_column(Float, default=0.0)  # 累计收入
     status: Mapped[str] = mapped_column(String(16), default="active")
     created_at: Mapped[datetime] = mapped_column(
         DateTime, server_default=func.now()

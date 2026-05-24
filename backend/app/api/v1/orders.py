@@ -22,7 +22,6 @@ from app.schemas.order import (
 )
 from app.core.security import get_current_user
 from app.services.agent_key_service import get_current_agent
-from pydantic import BaseModel
 
 router = APIRouter()
 
@@ -265,28 +264,31 @@ async def user_list_orders(
     )
 
 
-# ── 用户验收流程 (verify-01~05) ──────────────────────────────────
+# ── 验收流程 (verify-01~05) ──────────────────────────────────────
 
-class UserAcceptRequest(BaseModel):
+from pydantic import BaseModel as PydanticBaseModel
+
+
+class UserAcceptRequest(PydanticBaseModel):
     accept_note: Optional[str] = None
 
 
-class UserRejectRequest(BaseModel):
+class UserRejectRequest(PydanticBaseModel):
     reject_reason: str
 
 
-class AgentRedeliverRequest(BaseModel):
+class AgentRedeliverRequest(PydanticBaseModel):
     delivery_url: str
     delivery_note: Optional[str] = None
 
 
-class OrderEvent(BaseModel):
+class OrderEvent(PydanticBaseModel):
     event_type: str
     timestamp: datetime
     note: Optional[str] = None
 
 
-class OrderTimelineResponse(BaseModel):
+class OrderTimelineResponse(PydanticBaseModel):
     order_id: str
     status: str
     events: list[OrderEvent]
@@ -299,39 +301,27 @@ async def user_accept_delivery(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """用户验收通过 (verify-01).
-
-    status delivered→completed → Agent信用分+5 → 完成计数+1
-    """
+    """用户验收通过 (verify-01)."""
     result = await db.execute(
-        select(Order).where(
-            Order.id == order_id,
-            Order.user_id == current_user.id,
-        )
+        select(Order).where(Order.id == order_id, Order.user_id == current_user.id)
     )
     order = result.scalar_one_or_none()
     if not order:
         raise HTTPException(status_code=404, detail="订单不存在")
     if order.status != "delivered":
         raise HTTPException(status_code=400, detail="仅已交付状态可验收")
-
     order.status = "completed"
     order.completed_at = datetime.now(timezone.utc).replace(tzinfo=None)
     order.accept_note = req.accept_note
     order.updated_at = datetime.now(timezone.utc).replace(tzinfo=None)
     await db.commit()
     await db.refresh(order)
-
-    # Agent信用分+5
-    agent_result = await db.execute(
-        select(Agent).where(Agent.id == order.agent_id)
-    )
+    agent_result = await db.execute(select(Agent).where(Agent.id == order.agent_id))
     agent = agent_result.scalar_one_or_none()
     if agent:
         agent.credit_score += 5
         agent.completed_count += 1
         await db.commit()
-
     return order
 
 
@@ -342,29 +332,21 @@ async def user_reject_delivery(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """用户拒绝验收 (verify-02).
-
-    status delivered→rejected → 通知Agent有1次修改机会(24h内)
-    """
+    """用户拒绝验收 (verify-02)."""
     result = await db.execute(
-        select(Order).where(
-            Order.id == order_id,
-            Order.user_id == current_user.id,
-        )
+        select(Order).where(Order.id == order_id, Order.user_id == current_user.id)
     )
     order = result.scalar_one_or_none()
     if not order:
         raise HTTPException(status_code=404, detail="订单不存在")
     if order.status != "delivered":
         raise HTTPException(status_code=400, detail="仅已交付状态可拒绝")
-
     order.status = "rejected"
     order.reject_reason = req.reject_reason
     order.reject_count += 1
     order.updated_at = datetime.now(timezone.utc).replace(tzinfo=None)
     await db.commit()
     await db.refresh(order)
-
     return order
 
 
@@ -375,22 +357,15 @@ async def agent_redeliver(
     db: AsyncSession = Depends(get_db),
     agent: Agent = Depends(get_current_agent),
 ):
-    """Agent修改后重新交付 (verify-04).
-
-    rejected→delivered → 重新计时48h
-    """
+    """Agent重新交付 (verify-04)."""
     result = await db.execute(
-        select(Order).where(
-            Order.id == order_id,
-            Order.agent_id == agent.id,
-        )
+        select(Order).where(Order.id == order_id, Order.agent_id == agent.id)
     )
     order = result.scalar_one_or_none()
     if not order:
         raise HTTPException(status_code=404, detail="订单不存在")
     if order.status != "rejected":
         raise HTTPException(status_code=400, detail="仅被拒绝的订单可重新交付")
-
     order.status = "delivered"
     order.delivery_url = req.delivery_url
     order.delivery_note = req.delivery_note
@@ -398,7 +373,6 @@ async def agent_redeliver(
     order.updated_at = datetime.now(timezone.utc).replace(tzinfo=None)
     await db.commit()
     await db.refresh(order)
-
     return order
 
 
@@ -408,20 +382,13 @@ async def get_order_timeline(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """查看订单时间线 (verify-05).
-
-    返回订单全生命周期事件。
-    """
+    """查看订单时间线 (verify-05)."""
     result = await db.execute(
-        select(Order).where(
-            Order.id == order_id,
-            Order.user_id == current_user.id,
-        )
+        select(Order).where(Order.id == order_id, Order.user_id == current_user.id)
     )
     order = result.scalar_one_or_none()
     if not order:
         raise HTTPException(status_code=404, detail="订单不存在")
-
     events = [OrderEvent(event_type="created", timestamp=order.created_at, note="订单创建")]
     if order.accept_note:
         events.append(OrderEvent(event_type="accepted", timestamp=order.updated_at, note=order.accept_note))
@@ -433,9 +400,4 @@ async def get_order_timeline(
         events.append(OrderEvent(event_type="completed", timestamp=order.completed_at, note=order.accept_note))
     if order.cancel_reason:
         events.append(OrderEvent(event_type="cancelled", timestamp=order.updated_at, note=order.cancel_reason))
-
-    return OrderTimelineResponse(
-        order_id=order.id,
-        status=order.status,
-        events=events,
-    )
+    return OrderTimelineResponse(order_id=order.id, status=order.status, events=events)

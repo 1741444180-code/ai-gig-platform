@@ -7,6 +7,7 @@ from .order import Order
 from .payment import Payment
 from .review import Review
 from .credit_log import CreditLog
+from .withdraw import Withdraw
 
 
 def init_db():
