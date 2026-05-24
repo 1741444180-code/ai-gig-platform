@@ -3,6 +3,7 @@
 import uuid
 from datetime import datetime
 from sqlalchemy import String, Float, Integer, Text, DateTime, func
+from pgvector.sqlalchemy import Vector
 from sqlalchemy.orm import Mapped, mapped_column
 from app.models.base import Base
 
@@ -29,6 +30,8 @@ class Demand(Base):
     )  # open | quoted | matched | in_progress | completed | cancelled
     ai_structured: Mapped[str] = mapped_column(Text, nullable=True)  # AI结构化后的JSON
     deadline: Mapped[datetime] = mapped_column(DateTime, nullable=True)
+    # vector-04: 需求向量化字段
+    demand_vec: Mapped[list] = mapped_column(Vector(1536), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime, server_default=func.now()
     )

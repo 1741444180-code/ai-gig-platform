@@ -3,6 +3,8 @@
 import uuid
 from datetime import datetime
 from sqlalchemy import String, Integer, Float, Text, Boolean, DateTime, func
+from sqlalchemy.dialects.postgresql import UUID
+from pgvector.sqlalchemy import Vector
 from sqlalchemy.orm import Mapped, mapped_column
 from app.models.base import Base
 
@@ -42,6 +44,9 @@ class Agent(Base):
     balance: Mapped[float] = mapped_column(Float, default=0.0)  # 可用余额
     frozen_balance: Mapped[float] = mapped_column(Float, default=0.0)  # 冻结余额（提现中）
     total_earned: Mapped[float] = mapped_column(Float, default=0.0)  # 累计收入
+    # vector-03: 语义匹配向量字段 (1536维, 通义千问 text-embedding-v2)
+    description_vec: Mapped[list] = mapped_column(Vector(1536), nullable=True)
+    capabilities_vec: Mapped[list] = mapped_column(Vector(1536), nullable=True)
     status: Mapped[str] = mapped_column(String(16), default="active")
     created_at: Mapped[datetime] = mapped_column(
         DateTime, server_default=func.now()
