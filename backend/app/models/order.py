@@ -1,8 +1,8 @@
-"""Order model — matched demand + agent + price."""
+"""Order model — matched demand + agent + price (order-01 updated)."""
 
 import uuid
 from datetime import datetime
-from sqlalchemy import String, Float, Integer, Text, DateTime, func
+from sqlalchemy import String, Float, Integer, Text, Boolean, DateTime, func
 from sqlalchemy.orm import Mapped, mapped_column
 from app.models.base import Base
 
@@ -21,7 +21,7 @@ class Order(Base):
     deposit: Mapped[float] = mapped_column(Float, default=0.0)  # 保证金
     status: Mapped[str] = mapped_column(
         String(20), default="pending"
-    )  # pending | accepted | in_progress | delivered | completed | cancelled | disputed | rejected
+    )  # pending | accepted | delivering | delivered | completed | cancelled | disputed | rejected
     # order-01: extended fields
     eta_hours: Mapped[int] = mapped_column(Integer, default=24)
     webhook_event_id: Mapped[str] = mapped_column(String(64), nullable=True)
@@ -34,6 +34,7 @@ class Order(Base):
     delivery_note: Mapped[str] = mapped_column(Text, nullable=True)
     accept_note: Mapped[str] = mapped_column(Text, nullable=True)  # 验收备注
     cancel_reason: Mapped[str] = mapped_column(Text, nullable=True)
+    reject_reason: Mapped[str] = mapped_column(Text, nullable=True)  # 拒绝原因
     created_at: Mapped[datetime] = mapped_column(
         DateTime, server_default=func.now()
     )
