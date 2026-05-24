@@ -1,10 +1,11 @@
-"""需求发布 + AI结构化 (demand-01~08)."""
+"""需求发布 + AI结构化 + 撮合匹配 (demand-01~08, match-01~05)."""
 
 import json
+import logging
 from datetime import datetime, timezone
-from typing import Optional, List
+from typing import Optional, List, Dict, Any
 
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, HTTPException, status, Query, BackgroundTasks
 from pydantic import BaseModel
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -14,8 +15,10 @@ from app.models.demand import Demand
 from app.models.user import User
 from app.core.security import get_current_user
 from app.services.ai_service import ai_extract_tags
+from app.services.demand_push_service import trigger_matching
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 
 # ── Schemas ──────────────────────────────────────────────────────
@@ -59,16 +62,35 @@ class DemandListResponse(BaseModel):
     page_size: int
 
 
+class MatchResponse(BaseModel):
+    matched_count: int
+    pushed_count: int
+    pushed_agents: List[Dict[str, Any]]
+
+
+class MatchAgentInfo(BaseModel):
+    agent_id: str
+    agent_name: str
+    score: int
+    matched_tags: List[str]
+
+
+class MatchListResponse(BaseModel):
+    demand_id: str
+    matched_agents: List[MatchAgentInfo]
+    total: int
+
+
 # ── Endpoints ────────────────────────────────────────────────────
 
 @router.post("/", response_model=DemandResponse, status_code=201)
 async def create_demand(
     req: DemandCreate,
+    bg: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     """发布需求 + AI自动结构化 (demand-04)."""
-    # AI结构化提取
     ai_result = await ai_extract_tags(req.description)
     ai_structured = json.dumps(ai_result, ensure_ascii=False)
     
@@ -88,6 +110,10 @@ async def create_demand(
     db.add(demand)
     await db.commit()
     await db.refresh(demand)
+    
+    # 后台触发撮合
+    bg.add_task(_do_match, demand.id)
+    
     return demand
 
 
@@ -119,12 +145,10 @@ async def list_demands(
     if keyword:
         query = query.where(Demand.title.ilike(f"%{keyword}%") | Demand.description.ilike(f"%{keyword}%"))
     
-    # 总数
     count_query = select(func.count()).select_from(query.subquery())
     total_result = await db.execute(count_query)
     total = total_result.scalar() or 0
     
-    # 分页
     query = query.order_by(Demand.created_at.desc())
     query = query.offset((page - 1) * page_size).limit(page_size)
     result = await db.execute(query)
@@ -169,7 +193,6 @@ async def update_demand(
     if demand.user_id != current_user.id:
         raise HTTPException(status_code=403, detail="只能编辑自己的需求")
     
-    # 重新AI结构化
     ai_result = await ai_extract_tags(req.description)
     
     demand.title = req.title
@@ -207,3 +230,67 @@ async def cancel_demand(
     await db.commit()
     await db.refresh(demand)
     return demand
+
+
+# ── 撮合匹配 (match-01~05) ──────────────────────────────────────
+
+@router.post("/{demand_id}/match", response_model=MatchResponse)
+async def trigger_demand_match(
+    demand_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """手动触发需求撮合 (match-05)."""
+    result = await db.execute(select(Demand).where(Demand.id == demand_id))
+    demand = result.scalar_one_or_none()
+    if not demand:
+        raise HTTPException(status_code=404, detail="需求不存在")
+    if demand.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="只能匹配自己的需求")
+    if demand.status != "open":
+        raise HTTPException(status_code=400, detail="仅开放状态的需求可匹配")
+    
+    return await trigger_matching(demand, db)
+
+
+@router.get("/{demand_id}/matching", response_model=MatchListResponse)
+async def get_matched_agents(
+    demand_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """查看需求匹配的Agent列表 (match-05)."""
+    result = await db.execute(select(Demand).where(Demand.id == demand_id))
+    demand = result.scalar_one_or_none()
+    if not demand:
+        raise HTTPException(status_code=404, detail="需求不存在")
+    
+    from app.services.match_service import match_agents
+    matched = await match_agents(demand, db, top_n=5)
+    
+    return MatchListResponse(
+        demand_id=demand.id,
+        matched_agents=[
+            MatchAgentInfo(
+                agent_id=item["agent"].id,
+                agent_name=item["agent"].name,
+                score=item["score"],
+                matched_tags=item["matched_tags"],
+            )
+            for item in matched
+        ],
+        total=len(matched),
+    )
+
+
+async def _do_match(demand_id: str):
+    """后台任务：触发撮合."""
+    try:
+        from app.db.engine import AsyncSessionLocal
+        async with AsyncSessionLocal() as db:
+            result = await db.execute(select(Demand).where(Demand.id == demand_id))
+            demand = result.scalar_one_or_none()
+            if demand and demand.status == "open":
+                await trigger_matching(demand, db)
+    except Exception as e:
+        logger.error(f"[Match] Background matching failed for {demand_id}: {e}")
