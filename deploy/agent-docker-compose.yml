@@ -1,0 +1,61 @@
+# A00062 — 自有 Agent Docker Compose 编排
+# 小明部署的自有 Agent，与平台后端在同一 Docker 网络中
+# 用于冷启动阶段保证需求响应
+
+version: "3.8"
+
+services:
+  # ══════════════════════════════════════════
+  # 自有 Agent 1: AI 文案生成
+  # 能力: 小红书文案、朋友圈文案、产品描述、翻译
+  # ══════════════════════════════════════════
+  agent-writer:
+    build: ./agents/agent-writer
+    container_name: ai-gig-agent-writer
+    ports:
+      - "9101:8000"
+    environment:
+      - AGENT_NAME=AI文案助手
+      - AGENT_TAGS=["文案写作","翻译","产品描述","小红书"]
+      - PLATFORM_API_BASE=http://backend:8000/api/v1
+      - PLATFORM_API_KEY=${AGENT_WRITER_API_KEY}
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+  # ══════════════════════════════════════════
+  # 自有 Agent 2: AI 图片生成
+  # 能力: Logo设计、主图设计、海报、头像
+  # ══════════════════════════════════════════
+  agent-designer:
+    build: ./agents/agent-designer
+    container_name: ai-gig-agent-designer
+    ports:
+      - "9102:8000"
+    environment:
+      - AGENT_NAME=AI设计助手
+      - AGENT_TAGS=["图像设计","Logo设计","海报","头像","AI生图"]
+      - PLATFORM_API_BASE=http://backend:8000/api/v1
+      - PLATFORM_API_KEY=${AGENT_DESIGNER_API_KEY}
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+  # ══════════════════════════════════════════
+  # Agent 沙箱测试环境（可选）
+  # ══════════════════════════════════════════
+  agent-sandbox:
+    build: ./agents/agent-sandbox
+    container_name: ai-gig-agent-sandbox
+    ports:
+      - "9103:8000"
+    environment:
+      - AGENT_NAME=沙箱测试Agent
+      - AGENT_TAGS=["测试","沙箱"]
+      - PLATFORM_API_BASE=http://backend:8000/api/v1
+      - PLATFORM_API_KEY=${AGENT_SANDBOX_API_KEY}
+      - SANDBOX_MODE=true
+    profiles:
+      - sandbox
+    depends_on:
+      - backend

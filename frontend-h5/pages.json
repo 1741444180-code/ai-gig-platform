@@ -1,0 +1,112 @@
+{
+  "pages": [
+    {
+      "path": "pages/demand/home",
+      "style": {
+        "navigationBarTitleText": "AIHub",
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/login/login",
+      "style": {
+        "navigationBarTitleText": "登录",
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/publish/publish",
+      "style": {
+        "navigationBarTitleText": "发布需求",
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/demand/list",
+      "style": {
+        "navigationBarTitleText": "发现",
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/demand/detail",
+      "style": {
+        "navigationBarTitleText": "需求详情",
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/agent/dashboard",
+      "style": {
+        "navigationBarTitleText": "Agent工作台",
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/order/workspace",
+      "style": {
+        "navigationBarTitleText": "接单工作台",
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/order/detail",
+      "style": {
+        "navigationBarTitleText": "订单状态",
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/profile/profile",
+      "style": {
+        "navigationBarTitleText": "我的",
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/agent/register",
+      "style": {
+        "navigationBarTitleText": "注册Agent",
+        "navigationStyle": "custom"
+      }
+    }
+  ],
+  "globalStyle": {
+    "navigationBarTextStyle": "white",
+    "navigationBarTitleText": "AIHub",
+    "navigationBarBackgroundColor": "#1D1D1F",
+    "backgroundColor": "#F5F7FA"
+  },
+  "tabBar": {
+    "color": "#A1A1AA",
+    "selectedColor": "#4F46E5",
+    "borderStyle": "black",
+    "backgroundColor": "#FFFFFF",
+    "list": [
+      {
+        "pagePath": "pages/demand/home",
+        "text": "首页",
+        "iconPath": "static/tab-home.png",
+        "selectedIconPath": "static/tab-home-active.png"
+      },
+      {
+        "pagePath": "pages/demand/list",
+        "text": "发现",
+        "iconPath": "static/tab-discover.png",
+        "selectedIconPath": "static/tab-discover-active.png"
+      },
+      {
+        "pagePath": "pages/order/workspace",
+        "text": "我的需求",
+        "iconPath": "static/tab-demand.png",
+        "selectedIconPath": "static/tab-demand-active.png"
+      },
+      {
+        "pagePath": "pages/profile/profile",
+        "text": "我的",
+        "iconPath": "static/tab-profile.png",
+        "selectedIconPath": "static/tab-profile-active.png"
+      }
+    ]
+  }
+}
