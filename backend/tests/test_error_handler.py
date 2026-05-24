@@ -1,3 +1,5 @@
+import json
+import uuid
 """Tests for error handler service (error-01~09).
 
 Coverage: cancel_overdue_orders, arbitration, agent abandon, health check.
@@ -28,8 +30,8 @@ class TestCancelOverdueOrders:
         """Order past ETA should be cancelled, credit score -10."""
         # Create an overdue accepted order
         order = Order(
-            id="order-overdue-1",
-            demand_id="demand-overdue-1",
+            id=f"order-overdue-{uuid.uuid4().hex[:8]}",
+            demand_id=f"demand-overdue-{uuid.uuid4().hex[:8]}",
             agent_id=test_agent.id,
             user_id=test_user.id,
             price=100.0,
@@ -53,7 +55,7 @@ class TestCancelOverdueOrders:
     async def test_cancel_requeues_demand(self, async_db, test_agent: Agent, test_user: User):
         """Cancelled order should re-queue the demand."""
         demand = Demand(
-            id="demand-overdue-2",
+            id=f"demand-overdue-{uuid.uuid4().hex[:8]}",
             user_id=test_user.id,
             title="Overdue demand",
             description="test",
@@ -65,7 +67,7 @@ class TestCancelOverdueOrders:
         await async_db.commit()
 
         order = Order(
-            id="order-overdue-2",
+            id=f"order-overdue-{uuid.uuid4().hex[:8]}",
             demand_id=demand.id,
             agent_id=test_agent.id,
             user_id=test_user.id,
@@ -96,9 +98,9 @@ class TestArbitration:
     async def test_initiate_arbitration(self, async_db, test_user: User):
         """Arbitration should set status=disputed."""
         order = Order(
-            id="order-arb-1",
-            demand_id="demand-arb-1",
-            agent_id="agent-arb-1",
+            id=f"order-arb-{uuid.uuid4().hex[:8]}",
+            demand_id=f"demand-arb-{uuid.uuid4().hex[:8]}",
+            agent_id=f"agent-arb-{uuid.uuid4().hex[:8]}",
             user_id=test_user.id,
             price=100.0,
             status="delivered",
@@ -114,9 +116,9 @@ class TestArbitration:
     async def test_resolve_arbitration_refund(self, async_db, test_user: User):
         """Resolution 'refund' should cancel order."""
         order = Order(
-            id="order-arb-2",
-            demand_id="demand-arb-2",
-            agent_id="agent-arb-2",
+            id=f"order-arb-{uuid.uuid4().hex[:8]}",
+            demand_id=f"demand-arb-{uuid.uuid4().hex[:8]}",
+            agent_id=f"agent-arb-{uuid.uuid4().hex[:8]}",
             user_id=test_user.id,
             price=100.0,
             status="disputed",
@@ -134,8 +136,8 @@ class TestArbitration:
         """Resolution 'release_agent' should complete order and +5 credit."""
         original_score = test_agent.credit_score
         order = Order(
-            id="order-arb-3",
-            demand_id="demand-arb-3",
+            id=f"order-arb-{uuid.uuid4().hex[:8]}",
+            demand_id=f"demand-arb-{uuid.uuid4().hex[:8]}",
             agent_id=test_agent.id,
             user_id=test_user.id,
             price=100.0,
@@ -157,9 +159,9 @@ class TestArbitration:
     async def test_resolve_arbitration_non_disputed_fails(self, async_db, test_user: User):
         """Resolving non-disputed order should fail."""
         order = Order(
-            id="order-arb-4",
-            demand_id="demand-arb-4",
-            agent_id="agent-arb-4",
+            id=f"order-arb-{uuid.uuid4().hex[:8]}",
+            demand_id=f"demand-arb-{uuid.uuid4().hex[:8]}",
+            agent_id=f"agent-arb-{uuid.uuid4().hex[:8]}",
             user_id=test_user.id,
             price=100.0,
             status="completed",  # not disputed
@@ -184,7 +186,7 @@ class TestAgentAbandon:
     async def test_agent_abandon_order(self, async_db, test_agent: Agent, test_user: User):
         """Abandoned order should cancel, credit score -5, demand re-queued."""
         demand = Demand(
-            id="demand-abandon-1",
+            id=f"demand-abandon-{uuid.uuid4().hex[:8]}",
             user_id=test_user.id,
             title="Abandon demand",
             description="test",
@@ -195,7 +197,7 @@ class TestAgentAbandon:
         await async_db.commit()
 
         order = Order(
-            id="order-abandon-1",
+            id=f"order-abandon-{uuid.uuid4().hex[:8]}",
             demand_id=demand.id,
             agent_id=test_agent.id,
             user_id=test_user.id,
@@ -248,11 +250,11 @@ class TestAgentHealthCheck:
     async def test_health_check_flags_inactive(self, async_db, test_user: User):
         """Agent registered 7+ days ago with 0 completed should be flagged."""
         agent = Agent(
-            id="agent-inactive-1",
+            id=f"agent-inactive-{uuid.uuid4().hex[:8]}",
             user_id=test_user.id,
             name="old_inactive_agent",
             api_url="https://example.com",
-            capabilities=["文案"],
+            capabilities=json.dumps(["文案"], ensure_ascii=False),
             completed_count=0,
             created_at=datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=8),
         )

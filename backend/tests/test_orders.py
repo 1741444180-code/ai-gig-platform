@@ -1,3 +1,4 @@
+import uuid
 """Tests for order module (order-02~07 + verify-01~05).
 
 Coverage: accept, deliver, cancel, accept-delivery, reject-delivery, redeliver, timeline, user view.
@@ -18,7 +19,7 @@ from app.models.user import User
 async def _create_test_order(async_db, agent: Agent, test_user: User) -> Order:
     """Helper to create a pending order in DB."""
     demand = Demand(
-        id=f"demand-order-{agent.id[:8]}",
+        id=f"demand-order-{agent.id[:8]}-{uuid.uuid4().hex[:4]}",
         user_id=test_user.id,
         title="Order test demand",
         description="test",
@@ -31,7 +32,7 @@ async def _create_test_order(async_db, agent: Agent, test_user: User) -> Order:
     await async_db.commit()
 
     order = Order(
-        id=f"order-test-{agent.id[:8]}",
+        id=f"order-test-{agent.id[:8]}-{uuid.uuid4().hex[:4]}",
         demand_id=demand.id,
         agent_id=agent.id,
         user_id=test_user.id,
@@ -132,9 +133,9 @@ class TestUserAcceptDelivery:
     async def test_accept_delivery_wrong_status(self, client: AsyncClient, test_user: User, async_db):
         """Accepting non-delivered order should fail."""
         order = Order(
-            id=f"order-wrong-status-{test_user.id[:8]}",
+            id=f"order-wrong-status-{uuid.uuid4().hex[:8]}",
             demand_id=f"demand-wrong-{test_user.id[:8]}",
-            agent_id="agent-fake",
+            agent_id=f"agent-fake-{uuid.uuid4().hex[:8]}",
             user_id=test_user.id,
             price=50.0,
             status="pending",  # not delivered
@@ -156,9 +157,9 @@ class TestUserRejectDelivery:
     async def test_reject_delivery_valid(self, client: AsyncClient, test_user: User, async_db):
         """User can reject delivery, order→rejected."""
         order = Order(
-            id=f"order-reject-{test_user.id[:8]}",
+            id=f"order-reject-{uuid.uuid4().hex[:8]}",
             demand_id=f"demand-reject-{test_user.id[:8]}",
-            agent_id="agent-fake-reject",
+            agent_id=f"agent-fake-reject-{uuid.uuid4().hex[:8]}",
             user_id=test_user.id,
             price=100.0,
             status="delivered",
@@ -203,9 +204,9 @@ class TestOrderTimeline:
     async def test_timeline_basic(self, client: AsyncClient, test_user: User, async_db):
         """Timeline should return order events."""
         order = Order(
-            id=f"order-timeline-{test_user.id[:8]}",
+            id=f"order-timeline-{uuid.uuid4().hex[:8]}",
             demand_id=f"demand-timeline-{test_user.id[:8]}",
-            agent_id="agent-timeline",
+            agent_id=f"agent-timeline-{uuid.uuid4().hex[:8]}",
             user_id=test_user.id,
             price=100.0,
             status="completed",
@@ -240,9 +241,9 @@ class TestUserViewOrders:
     async def test_user_get_order_detail(self, client: AsyncClient, test_user: User, async_db):
         """User can get their order detail."""
         order = Order(
-            id=f"order-view-{test_user.id[:8]}",
+            id=f"order-view-{uuid.uuid4().hex[:8]}",
             demand_id=f"demand-view-{test_user.id[:8]}",
-            agent_id="agent-view",
+            agent_id=f"agent-view-{uuid.uuid4().hex[:8]}",
             user_id=test_user.id,
             price=100.0,
             status="pending",
@@ -262,9 +263,9 @@ class TestOrderModelValidation:
     async def test_order_default_status(self, async_db, test_user: User):
         """New order should have default status='pending'."""
         order = Order(
-            id="order-val-1",
-            demand_id="demand-val-1",
-            agent_id="agent-val-1",
+            id=f"order-val-{uuid.uuid4().hex[:8]}",
+            demand_id=f"demand-val-{uuid.uuid4().hex[:8]}",
+            agent_id=f"agent-val-{uuid.uuid4().hex[:8]}",
             user_id=test_user.id,
             price=0.0,
         )
@@ -277,9 +278,9 @@ class TestOrderModelValidation:
     async def test_order_default_platform_fee(self, async_db, test_user: User):
         """New order should have default platform_fee=0.0."""
         order = Order(
-            id="order-val-2",
-            demand_id="demand-val-2",
-            agent_id="agent-val-2",
+            id=f"order-val-{uuid.uuid4().hex[:8]}",
+            demand_id=f"demand-val-{uuid.uuid4().hex[:8]}",
+            agent_id=f"agent-val-{uuid.uuid4().hex[:8]}",
             user_id=test_user.id,
             price=100.0,
         )
@@ -292,9 +293,9 @@ class TestOrderModelValidation:
     async def test_order_default_delivery_attempts(self, async_db, test_user: User):
         """New order should have default delivery_attempts=0."""
         order = Order(
-            id="order-val-3",
-            demand_id="demand-val-3",
-            agent_id="agent-val-3",
+            id=f"order-val-{uuid.uuid4().hex[:8]}",
+            demand_id=f"demand-val-{uuid.uuid4().hex[:8]}",
+            agent_id=f"agent-val-{uuid.uuid4().hex[:8]}",
             user_id=test_user.id,
             price=50.0,
         )

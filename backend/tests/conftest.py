@@ -1,12 +1,12 @@
 """Shared test fixtures for A00062 backend tests."""
 import asyncio
+import json
 import uuid
 from datetime import datetime, timedelta, timezone
 
 import pytest
 import pytest_asyncio
 from httpx import AsyncClient, ASGITransport
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 
 from app.main import app
@@ -20,35 +20,25 @@ from app.core.security import create_access_token
 TEST_DATABASE_URL = "postgresql+asyncpg:///ai_gig_test"
 
 
-@pytest_asyncio.fixture(scope="session")
-def event_loop():
-    loop = asyncio.new_event_loop()
-    yield loop
-    loop.close()
-
-
-@pytest_asyncio.fixture(scope="session")
-async def engine():
-    e = create_async_engine(TEST_DATABASE_URL, echo=False)
-    yield e
-    await e.dispose()
-
-
-@pytest_asyncio.fixture(scope="session", autouse=True)
-async def setup_db(engine):
-    """Create tables once per session."""
-    from app.models.base import Base
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+@pytest.fixture(scope="session")
+def event_loop_policy():
+    """Ensure consistent event loop policy."""
+    import sys
+    if sys.platform == "darwin":
+        import asyncio
+        policy = asyncio.DefaultEventLoopPolicy()
+        asyncio.set_event_loop_policy(policy)
     yield
 
 
-@pytest_asyncio.fixture
-async def async_db(engine) -> AsyncSession:
+@pytest_asyncio.fixture(scope="function")
+async def async_db():
+    """Fresh database session per test."""
+    engine = create_async_engine(TEST_DATABASE_URL, echo=False)
     session_maker = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
     async with session_maker() as session:
         yield session
-        await session.rollback()
+    await engine.dispose()
 
 
 @pytest_asyncio.fixture
@@ -88,7 +78,8 @@ async def test_agent(async_db: AsyncSession, test_user: User) -> Agent:
         user_id=test_user.id,
         name=f"test_agent_{uuid.uuid4().hex[:8]}",
         description="Test agent",
-        capabilities=["文案"],
+        api_url="https://example.com",
+        capabilities=json.dumps(["文案"], ensure_ascii=False),
         credit_score=100,
         status="active",
         is_owner_agent=False,
@@ -101,22 +92,14 @@ async def test_agent(async_db: AsyncSession, test_user: User) -> Agent:
     return agent
 
 
-def make_user_token(user_id: str) -> str:
-    return create_access_token(user_id=user_id)
-
-
-def make_admin_token(user_id: str) -> str:
-    return create_access_token(user_id=user_id)
-
-
 @pytest_asyncio.fixture
 async def client(async_db: AsyncSession):
-    """Override get_db dependency to use test session."""
+    """HTTP client with test database override."""
     async def override_get_db():
         yield async_db
 
     app.dependency_overrides[get_db] = override_get_db
-    transport = ASGITransport(app=app, is_async=True)
+    transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as c:
         yield c
     app.dependency_overrides.clear()

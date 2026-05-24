@@ -1,3 +1,4 @@
+import uuid
 """Tests for admin module (admin-01~07).
 
 Coverage: admin auth, user management, agent management, order management, dashboard, arbitration, scheduled tasks.
@@ -108,9 +109,9 @@ class TestOrderManagement:
         """Admin can force cancel an order."""
         from app.models.order import Order
         order = Order(
-            id="order-admin-cancel",
+            id=f"order-admin-{uuid.uuid4().hex[:8]}",
             demand_id="demand-admin-cancel",
-            agent_id="agent-admin-cancel",
+            agent_id=f"agent-admin-{uuid.uuid4().hex[:8]}",
             user_id=test_admin.id,
             price=100.0,
             status="accepted",
@@ -130,9 +131,9 @@ class TestOrderManagement:
         """Admin can force complete an order."""
         from app.models.order import Order
         order = Order(
-            id="order-admin-complete",
+            id=f"order-admin-{uuid.uuid4().hex[:8]}",
             demand_id="demand-admin-complete",
-            agent_id="agent-admin-complete",
+            agent_id=f"agent-admin-{uuid.uuid4().hex[:8]}",
             user_id=test_admin.id,
             price=100.0,
             status="delivered",
@@ -185,9 +186,9 @@ class TestArbitration:
         """Admin can initiate arbitration."""
         from app.models.order import Order
         order = Order(
-            id="order-arb-init",
-            demand_id="demand-arb-init",
-            agent_id="agent-arb-init",
+            id=f"order-arb-{uuid.uuid4().hex[:8]}",
+            demand_id=f"demand-arb-{uuid.uuid4().hex[:8]}",
+            agent_id=f"agent-arb-{uuid.uuid4().hex[:8]}",
             user_id=test_admin.id,
             price=100.0,
             status="delivered",

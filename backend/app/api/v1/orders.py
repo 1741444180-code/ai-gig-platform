@@ -243,6 +243,15 @@ async def user_list_orders(
     current_user: User = Depends(get_current_user),
 ):
     """用户查看自己的订单列表 (order-06)."""
+    query = select(Order).where(Order.user_id == current_user.id)
+
+    if status_filter:
+        query = query.where(Order.status == status_filter)
+
+    count_query = select(func.count()).select_from(query.subquery())
+    total_result = await db.execute(count_query)
+    total = total_result.scalar() or 0
+
     query = query.order_by(Order.created_at.desc())
     query = query.offset((page - 1) * page_size).limit(page_size)
     result = await db.execute(query)
