@@ -21,7 +21,12 @@ class DemandResponse(BaseModel):
     category: Optional[str]
     tags: Optional[str]
     budget: Optional[float]
+    publisher_type: str
+    fulfill_mode: str
+    match_status: str
     status: str
+    ai_structured: Optional[str]
+    deadline: Optional[datetime]
     created_at: datetime
     updated_at: datetime
 
