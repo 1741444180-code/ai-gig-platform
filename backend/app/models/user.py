@@ -18,6 +18,11 @@ class User(Base):
     avatar_url: Mapped[str] = mapped_column(String(256), nullable=True)
     role: Mapped[str] = mapped_column(String(16), default="user")  # user | agent | admin
     status: Mapped[str] = mapped_column(String(16), default="active")  # active | banned
+    # JWT auth fields (auth-01)
+    password_hash: Mapped[str] = mapped_column(String(256), nullable=True)
+    sms_code: Mapped[str] = mapped_column(String(10), nullable=True)
+    sms_code_expires: Mapped[datetime] = mapped_column(DateTime, nullable=True)
+    last_login_at: Mapped[datetime] = mapped_column(DateTime, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime, server_default=func.now()
     )
