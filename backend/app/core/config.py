@@ -20,7 +20,8 @@ class Settings(BaseSettings):
 
     # 通义千问
     QWEN_API_KEY: str = ""
-    QWEN_MODEL: str = "qwen-plus"
+    QWEN_MODEL: str = "qwen3.6-plus"
+    DASHSCOPE_BASE_URL: str = "https://coding.dashscope.aliyuncs.com/v1"
 
     # 微信
     WECHAT_APP_ID: str = ""
