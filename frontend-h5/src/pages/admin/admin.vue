@@ -9,6 +9,7 @@
 
     <view v-else class="admin-content">
       <!-- Tab切换 -->
+      <view class="admin-tabs-wrapper">
       <scroll-view scroll-x class="admin-tabs">
         <view
           v-for="tab in adminTabs"
@@ -18,6 +19,7 @@
           @click="switchTab(tab.key)"
         >{{ tab.label }}</view>
       </scroll-view>
+      </view>
 
       <!-- 数据看板 -->
       <view v-show="currentTab === 'dashboard'" class="tab-panel">
@@ -475,6 +477,10 @@ export default {
   flex-direction: column;
 }
 
+.admin-tabs-wrapper {
+  overflow: hidden;
+}
+
 .admin-tabs {
   display: flex;
   white-space: nowrap;
@@ -519,6 +525,12 @@ export default {
   align-items: center;
 }
 
+@media screen and (min-width: 768px) {
+  .stat-card {
+    width: calc(20% - 16rpx);
+  }
+}
+
 .stat-value {
   font-size: 48rpx;
   font-weight: bold;
@@ -557,12 +569,14 @@ export default {
   background: #fff;
   border-radius: 16rpx;
   overflow: hidden;
+  overflow-x: auto;
 }
 
 .table-header {
   display: flex;
   padding: 20rpx 16rpx;
   background: #f5f5f5;
+  min-width: 600px;
 }
 
 .th {
@@ -576,6 +590,7 @@ export default {
   align-items: center;
   padding: 20rpx 16rpx;
   border-bottom: 1px solid #f0f0f0;
+  min-width: 600px;
 }
 
 .table-row:last-child {

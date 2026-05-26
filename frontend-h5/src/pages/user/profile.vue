@@ -141,6 +141,13 @@ export default {
   align-items: center;
   padding: 30rpx;
   border-bottom: 1px solid #f0f0f0;
+  min-height: 100rpx;
+}
+
+@media screen and (min-width: 768px) {
+  .menu-item {
+    padding: 40rpx 30rpx;
+  }
 }
 
 .menu-item:last-child {

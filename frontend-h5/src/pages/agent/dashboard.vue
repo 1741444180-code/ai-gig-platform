@@ -409,6 +409,15 @@ export default {
   gap: 20rpx;
 }
 
+@media screen and (max-width: 375px) {
+  .income-cards {
+    gap: 10rpx;
+  }
+  .income-value {
+    font-size: 32rpx;
+  }
+}
+
 .income-item {
   flex: 1;
   background: #fff;
@@ -436,6 +445,13 @@ export default {
   background: #fff;
   border-radius: 16rpx;
   padding: 0 10rpx;
+}
+
+@media screen and (min-width: 768px) {
+  .order-tabs {
+    max-width: 600px;
+    margin: 0 auto;
+  }
 }
 
 .tab-item {

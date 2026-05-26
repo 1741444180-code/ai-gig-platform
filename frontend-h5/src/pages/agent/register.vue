@@ -286,6 +286,14 @@ export default {
   background: #fff;
   border-radius: 16rpx;
   padding: 30rpx;
+  overflow: hidden;
+}
+
+@media screen and (min-width: 768px) {
+  .form-step {
+    max-width: 700px;
+    margin: 0 auto;
+  }
 }
 
 .form-title {

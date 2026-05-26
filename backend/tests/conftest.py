@@ -144,6 +144,12 @@ async def test_agent(async_db, test_user) -> Agent:
 
 
 @pytest_asyncio.fixture(scope="function")
+async def client(test_client):
+    """Alias for test_client (backward compat for tests using 'client')."""
+    return test_client
+
+
+@pytest_asyncio.fixture(scope="function")
 async def user_token(test_client, test_user) -> str:
     """Send SMS code + login → return access_token."""
     phone = test_user.phone
