@@ -69,6 +69,13 @@
         "navigationBarTitleText": "注册Agent",
         "navigationStyle": "custom"
       }
+    },
+    {
+      "path": "pages/admin/admin",
+      "style": {
+        "navigationBarTitleText": "管理中心",
+        "navigationStyle": "custom"
+      }
     }
   ],
   "globalStyle": {

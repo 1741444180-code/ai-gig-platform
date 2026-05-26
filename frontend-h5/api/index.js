@@ -395,6 +395,22 @@ export const admin = {
   resolveDispute(disputeId, data) {
     return request({ url: `/admin/disputes/${disputeId}/resolve`, method: 'POST', data, needAuth: true })
   },
+
+  /** 提现列表 */
+  getWithdraws(params = {}) {
+    return request({ url: '/admin/withdraws', method: 'GET', data: params, needAuth: true })
+  },
+
+  /** 批准提现 */
+  approveWithdraw(withdrawId) {
+    return request({ url: `/admin/withdraws/${withdrawId}/approve`, method: 'POST', needAuth: true })
+  },
+
+
+  /** 拒绝提现 */
+  rejectWithdraw(withdrawId) {
+    return request({ url: `/admin/withdraws/${withdrawId}/reject`, method: 'POST', needAuth: true })
+  },
 }
 
 export default { auth, demands, orders, agents, wallet, admin }

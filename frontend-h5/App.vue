@@ -25,6 +25,20 @@ view, text, image, scroll-view {
   box-sizing: border-box;
 }
 
+/* 安全区域适配 — iPhone X以上底部导航 safe-area */
+.safe-area-bottom {
+  padding-bottom: constant(safe-area-inset-bottom);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* 移动端字体适配 */
+page {
+  font-size: 14px;
+}
+@media screen and (max-width: 375px) {
+  page { font-size: 13px; }
+}
+
 /* 页面容器 */
 .page-container {
   padding-bottom: 60px; /* 底部导航高度 */
