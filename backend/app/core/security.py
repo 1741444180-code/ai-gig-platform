@@ -3,32 +3,35 @@
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
+import bcrypt
 from jose import JWTError, jwt
-from passlib.context import CryptContext
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
-from app.config import settings
+from app.config import settings  # settings is already instantiated at module load
 from app.db.engine import get_db
 from app.models.user import User
-
-# Password hashing context
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 # HTTP Bearer scheme for JWT
 security = HTTPBearer()
 
 
 def hash_password(password: str) -> str:
-    """Hash a password using bcrypt."""
-    return pwd_context.hash(password)
+    """Hash a password using bcrypt (direct, no passlib)."""
+    return bcrypt.hashpw(
+        password.encode("utf-8"),
+        bcrypt.gensalt(),
+    ).decode("utf-8")
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    """Verify a password against its hash."""
-    return pwd_context.verify(plain_password, hashed_password)
+    """Verify a password against its bcrypt hash."""
+    return bcrypt.checkpw(
+        plain_password.encode("utf-8"),
+        hashed_password.encode("utf-8"),
+    )
 
 
 def create_access_token(user_id: str, expires_delta: Optional[timedelta] = None) -> str:
@@ -36,7 +39,7 @@ def create_access_token(user_id: str, expires_delta: Optional[timedelta] = None)
 
     Args:
         user_id: The user's unique ID.
-        expires_delta: Optional custom expiry (default from settings.jwt_expire_hours).
+        expires_delta: Optional custom expiry (default from settings.access_token_expire_minutes).
 
     Returns:
         Encoded JWT string.
@@ -44,7 +47,7 @@ def create_access_token(user_id: str, expires_delta: Optional[timedelta] = None)
     if expires_delta:
         expire = datetime.now(timezone.utc) + expires_delta
     else:
-        expire = datetime.now(timezone.utc) + timedelta(hours=settings.jwt_expire_hours)
+        expire = datetime.now(timezone.utc) + timedelta(minutes=settings.access_token_expire_minutes)
 
     to_encode = {
         "sub": user_id,
@@ -52,7 +55,7 @@ def create_access_token(user_id: str, expires_delta: Optional[timedelta] = None)
         "iat": datetime.now(timezone.utc),
         "type": "access",
     }
-    return jwt.encode(to_encode, settings.jwt_secret, algorithm=settings.jwt_algorithm)
+    return jwt.encode(to_encode, settings.secret_key, algorithm=settings.algorithm)
 
 
 def create_refresh_token(user_id: str) -> str:
@@ -71,7 +74,7 @@ def create_refresh_token(user_id: str) -> str:
         "iat": datetime.now(timezone.utc),
         "type": "refresh",
     }
-    return jwt.encode(to_encode, settings.jwt_secret, algorithm=settings.jwt_algorithm)
+    return jwt.encode(to_encode, settings.secret_key, algorithm=settings.algorithm)
 
 
 def decode_token(token: str) -> dict:
@@ -88,7 +91,7 @@ def decode_token(token: str) -> dict:
     """
     try:
         payload = jwt.decode(
-            token, settings.jwt_secret, algorithms=[settings.jwt_algorithm]
+            token, settings.secret_key, algorithms=[settings.algorithm]
         )
         return payload
     except JWTError:
@@ -135,3 +138,7 @@ async def get_current_user(
             detail="账号已被禁用",
         )
     return user
+
+
+# Alias for backward compatibility with old routers
+get_current_active_user = get_current_user
