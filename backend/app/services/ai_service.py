@@ -100,7 +100,7 @@ async def _ai_extract(text: str) -> dict:
     import httpx
     
     api_key = settings.QWEN_API_KEY
-    base_url = "https://dashscope.aliyuncs.com/compatible-mode/v1"
+    base_url = settings.dashscope_base_url
     model = settings.QWEN_MODEL or "qwen-plus"
     
     try:

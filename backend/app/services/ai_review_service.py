@@ -163,7 +163,7 @@ async def _ai_review(
     import httpx
     
     api_key = settings.QWEN_API_KEY
-    base_url = "https://dashscope.aliyuncs.com/compatible-mode/v1"
+    base_url = settings.dashscope_base_url
     model = settings.QWEN_MODEL or "qwen-plus"
     
     prompt = f"""你是一个交付物验收专家。请根据以下需求和交付物进行质量评分。
@@ -331,7 +331,7 @@ async def _ai_arbitration_real(
     import httpx
     
     api_key = settings.QWEN_API_KEY
-    base_url = "https://dashscope.aliyuncs.com/compatible-mode/v1"
+    base_url = settings.dashscope_base_url
     model = settings.QWEN_MODEL or "qwen-plus"
     
     prompt = f"""你是一个仲裁专家。请分析以下需求与交付物的匹配度，给出仲裁建议。
