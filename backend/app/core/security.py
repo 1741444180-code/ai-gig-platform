@@ -1,5 +1,6 @@
 """JWT Token 生成/验证 + 密码哈希 (auth-03)."""
 
+import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
@@ -16,6 +17,9 @@ from app.models.user import User
 
 # HTTP Bearer scheme for JWT
 security = HTTPBearer()
+
+# In-memory token blacklist (jti -> set time)
+token_blacklist: set = set()
 
 
 def hash_password(password: str) -> str:
@@ -54,6 +58,7 @@ def create_access_token(user_id: str, expires_delta: Optional[timedelta] = None)
         "exp": expire,
         "iat": datetime.now(timezone.utc),
         "type": "access",
+        "jti": str(uuid.uuid4()),
     }
     return jwt.encode(to_encode, settings.secret_key, algorithm=settings.algorithm)
 
@@ -73,6 +78,7 @@ def create_refresh_token(user_id: str) -> str:
         "exp": expire,
         "iat": datetime.now(timezone.utc),
         "type": "refresh",
+        "jti": str(uuid.uuid4()),
     }
     return jwt.encode(to_encode, settings.secret_key, algorithm=settings.algorithm)
 
@@ -102,6 +108,11 @@ def decode_token(token: str) -> dict:
         )
 
 
+def add_to_blacklist(jti: str) -> None:
+    """Add a token's jti to the blacklist."""
+    token_blacklist.add(jti)
+
+
 async def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(security),
     db: AsyncSession = Depends(get_db),
@@ -114,9 +125,18 @@ async def get_current_user(
             return current_user
 
     Raises:
-        HTTPException 401: If token invalid or user not found.
+        HTTPException 401: If token invalid, blacklisted, or user not found.
     """
     payload = decode_token(credentials.credentials)
+
+    # Check if token is blacklisted
+    jti = payload.get("jti")
+    if jti and jti in token_blacklist:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token已失效，请重新登录",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
 
     user_id: Optional[str] = payload.get("sub")
     if user_id is None:

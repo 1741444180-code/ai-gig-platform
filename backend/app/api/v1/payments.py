@@ -19,7 +19,11 @@ from app.schemas.payment import (
     PaymentResponse,
     RefundRequest,
 )
-from app.services.payment_service import get_payment_service
+from app.services.payment_service import (
+    get_payment_service,
+    create_wechat_payment,
+    create_alipay_payment,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -111,12 +115,26 @@ async def create_payment(
     await db.flush()
     await db.refresh(payment)
 
-    # 6. 生成支付链接
-    pay_info = await payment_service.create_payment_url(
-        order_id=str(order.id),
-        amount=order.amount,
-        payment_method=req.payment_method,
-    )
+    # 6. 根据支付方式生成支付链接
+    if req.payment_method == "wechat":
+        pay_info = await create_wechat_payment(
+            order_id=str(order.id),
+            amount=order.amount,
+            description=f"AI订单-{order.id}",
+        )
+    elif req.payment_method == "alipay":
+        pay_info = await create_alipay_payment(
+            order_id=str(order.id),
+            amount=order.amount,
+            subject=f"AI订单-{order.id}",
+        )
+    else:
+        # fallback: manual / 其他
+        pay_info = await get_payment_service().create_payment_url(
+            order_id=str(order.id),
+            amount=order.amount,
+            payment_method=req.payment_method,
+        )
 
     logger.info(f"用户 {current_user.id} 创建支付: order_id={order.id}, amount={order.amount}")
 

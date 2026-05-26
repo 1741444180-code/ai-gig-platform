@@ -26,6 +26,18 @@ class Settings(BaseSettings):
     # 微信
     WECHAT_APP_ID: str = ""
     WECHAT_APP_SECRET: str = ""
+    WECHAT_MCH_ID: str = ""  # 商户号
+    WECHAT_MCH_KEY: str = ""  # 商户密钥（APIv2 MD5）
+    WECHAT_MCH_CERT_PATH: str = ""  # 商户证书路径（APIv3用）
+    WECHAT_MCH_KEY_PATH: str = ""  # 商户私钥路径（APIv3用）
+
+    # 支付宝
+    ALIPAY_APP_ID: str = ""
+    ALIPAY_PRIVATE_KEY: str = ""  # 应用私钥
+    ALIPAY_PUBLIC_KEY: str = ""  # 支付宝公钥
+
+    # 支付Mock模式
+    USE_MOCK_PAYMENT: bool = True  # True=沙箱/假支付
 
     # 阿里云OSS
     ALIYUN_ACCESS_KEY_ID: str = ""
