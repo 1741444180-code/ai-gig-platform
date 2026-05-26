@@ -19,7 +19,7 @@ class Review(Base):
     score: Mapped[int] = mapped_column(Integer, nullable=False)  # 1-5
     content: Mapped[str] = mapped_column(Text, nullable=True)
     # review-03: 申诉相关字段
-    is_appealed: Mapped[bool] = mapped_column(Boolean, default=False)  # 是否被申诉
+    is_appealed: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)  # 是否被申诉
     appeal_reason: Mapped[str] = mapped_column(Text, nullable=True)  # 申诉理由
     appeal_status: Mapped[str] = mapped_column(String(20), nullable=True)  # none | pending | resolved
     admin_action: Mapped[str] = mapped_column(String(20), nullable=True)  # dismiss | delete

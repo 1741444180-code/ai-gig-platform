@@ -1,13 +1,15 @@
 """SQLAlchemy async database engine."""
 
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
-from app.config import settings
+from app.core.config import get_settings
+
+settings = get_settings()
 
 engine = create_async_engine(
-    settings.database_url,
-    echo=settings.debug,
-    pool_size=10,
-    max_overflow=20,
+    getattr(settings, 'database_url', settings.DATABASE_URL),
+    echo=getattr(settings, 'debug', False),
+    pool_size=getattr(settings, 'db_pool_size', settings.DB_POOL_SIZE),
+    max_overflow=getattr(settings, 'db_max_overflow', settings.DB_MAX_OVERFLOW),
 )
 
 AsyncSessionLocal = async_sessionmaker(

@@ -22,9 +22,9 @@ class Demand(Base):
     budget: Mapped[float] = mapped_column(Float, nullable=True)
     attachments: Mapped[str] = mapped_column(Text, nullable=True)  # JSON: image/file URLs
     # demand-01: 扩展字段
-    publisher_type: Mapped[str] = mapped_column(String(16), default="user")  # user | agent
-    fulfill_mode: Mapped[str] = mapped_column(String(16), default="auto")  # auto | manual
-    match_status: Mapped[str] = mapped_column(String(16), default="pending")  # pending | matched | timeout
+    publisher_type: Mapped[str] = mapped_column(String(16), nullable=False, default="user")  # user | agent
+    fulfill_mode: Mapped[str] = mapped_column(String(16), nullable=False, default="auto")  # auto | manual
+    match_status: Mapped[str] = mapped_column(String(16), nullable=False, default="pending")  # pending | matched | timeout
     status: Mapped[str] = mapped_column(
         String(16), default="open"
     )  # open | quoted | matched | in_progress | completed | cancelled

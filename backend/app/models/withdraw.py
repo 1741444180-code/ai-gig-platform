@@ -18,7 +18,7 @@ class Withdraw(Base):
     payment_method: Mapped[str] = mapped_column(String(32), nullable=False)  # alipay | wechat | bank
     account_info: Mapped[str] = mapped_column(Text, nullable=True)  # 收款账号信息
     status: Mapped[str] = mapped_column(
-        String(20), default="pending"
+        String(20), nullable=False, default="pending"
     )  # pending | approved | rejected | completed
     admin_id: Mapped[str] = mapped_column(String(36), nullable=True)
     admin_note: Mapped[str] = mapped_column(Text, nullable=True)

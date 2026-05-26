@@ -77,17 +77,15 @@ class UserCreate(BaseModel):
 
 class UserResponse(BaseModel):
     """用户信息响应"""
-    id: uuid.UUID
+    id: str
     openid: Optional[str] = None
     phone: Optional[str] = None
     nickname: Optional[str] = None
-    avatar: Optional[str] = None
-    role: str
-    status: int
-    balance: float
-    credit_score: int
-    created_at: datetime
-    updated_at: datetime
+    avatar_url: Optional[str] = None
+    role: str = "user"
+    status: str = "active"
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
 
     model_config = {"from_attributes": True}
 

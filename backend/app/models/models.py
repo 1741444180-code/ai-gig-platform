@@ -1,7 +1,7 @@
 from sqlalchemy import Column, Integer, String, DateTime, Text, Boolean, Float, JSON, ForeignKey, SmallInteger
 from sqlalchemy.dialects.postgresql import UUID
 from pgvector.sqlalchemy import Vector
-from app.db.database import Base
+from app.models.base import Base
 from datetime import datetime, timezone
 import uuid
 

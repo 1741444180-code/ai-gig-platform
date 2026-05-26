@@ -8,12 +8,14 @@ import json
 import logging
 from typing import Optional, Dict, Any
 
-from app.config import settings
+from app.core.config import get_settings
+
+settings = get_settings()
 
 logger = logging.getLogger(__name__)
 
 # 模拟模式标志
-MOCK_MODE = not bool(settings.dashscope_api_key)
+MOCK_MODE = not bool(settings.QWEN_API_KEY)
 
 
 async def ai_review_delivery(
@@ -158,15 +160,65 @@ async def _ai_review(
     tags: Optional[str] = None,
 ) -> Dict[str, Any]:
     """真实调用通义千问 API 进行验收评分。"""
-    logger.warning("AI API key not configured, falling back to mock")
-    return _mock_review(
-        demand_title=demand_title,
-        demand_description=demand_description,
-        delivery_content=delivery_content,
-        delivery_url=delivery_url,
-        category=category,
-        tags=tags,
-    )
+    import httpx
+    
+    api_key = settings.QWEN_API_KEY
+    base_url = "https://dashscope.aliyuncs.com/compatible-mode/v1"
+    model = settings.QWEN_MODEL or "qwen-plus"
+    
+    prompt = f"""你是一个交付物验收专家。请根据以下需求和交付物进行质量评分。
+
+需求标题：{demand_title}
+需求描述：{demand_description}
+{"交付内容：" + delivery_content if delivery_content else ""}
+{"交付链接：" + delivery_url if delivery_url else ""}
+
+请返回JSON格式：
+{{
+    "score": 0-100的质量评分,
+    "reason": "评分理由说明",
+    "strengths": ["优点列表"],
+    "improvements": ["改进建议列表"],
+    "completion_percent": 0-100的完成度估算
+}}
+
+只返回JSON，不要其他内容。"""
+    
+    try:
+        async with httpx.AsyncClient(timeout=60) as client:
+            resp = await client.post(
+                f"{base_url}/chat/completions",
+                headers={
+                    "Authorization": f"Bearer {api_key}",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "model": model,
+                    "messages": [{"role": "user", "content": prompt}],
+                    "temperature": 0.3,
+                    "response_format": {"type": "json_object"},
+                },
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            content = data["choices"][0]["message"]["content"]
+            result = json.loads(content)
+            result.setdefault("reason", f"AI辅助评分 {result.get('score', 0)}/100")
+            result.setdefault("strengths", ["AI评分完成"])
+            result.setdefault("improvements", ["可继续优化"])
+            result.setdefault("completion_percent", min(100, 50 + (result.get("score", 70) - 30)))
+            logger.info(f"[AI Review] score={result['score']}")
+            return result
+    except Exception as e:
+        logger.error(f"[AI Review] API call failed: {e}, falling back to mock")
+        return _mock_review(
+            demand_title=demand_title,
+            demand_description=demand_description,
+            delivery_content=delivery_content,
+            delivery_url=delivery_url,
+            category=category,
+            tags=tags,
+        )
 
 
 async def ai_arbitration_review(
@@ -276,12 +328,62 @@ async def _ai_arbitration_real(
     category: Optional[str] = None,
 ) -> Dict[str, Any]:
     """真实调用通义千问 API 进行仲裁分析。"""
-    logger.warning("AI API key not configured, falling back to mock")
-    return _mock_arbitration(
-        demand_title=demand_title,
-        demand_description=demand_description,
-        delivery_content=delivery_content,
-        delivery_url=delivery_url,
-        reject_reason=reject_reason,
-        category=category,
-    )
+    import httpx
+    
+    api_key = settings.QWEN_API_KEY
+    base_url = "https://dashscope.aliyuncs.com/compatible-mode/v1"
+    model = settings.QWEN_MODEL or "qwen-plus"
+    
+    prompt = f"""你是一个仲裁专家。请分析以下需求与交付物的匹配度，给出仲裁建议。
+
+需求标题：{demand_title}
+需求描述：{demand_description}
+{"交付内容：" + delivery_content if delivery_content else ""}
+{"交付链接：" + delivery_url if delivery_url else ""}
+{"用户拒绝原因：" + reject_reason if reject_reason else ""}
+
+请返回JSON格式：
+{{
+    "suggested_refund_percent": 0-100的建议退款比例,
+    "suggested_resolution": "refund|partial_refund|release_agent|redeliver",
+    "reason": "仲裁分析理由",
+    "match_score": 0-100的需求-交付物匹配度
+}}
+
+只返回JSON，不要其他内容。"""
+    
+    try:
+        async with httpx.AsyncClient(timeout=60) as client:
+            resp = await client.post(
+                f"{base_url}/chat/completions",
+                headers={
+                    "Authorization": f"Bearer {api_key}",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "model": model,
+                    "messages": [{"role": "user", "content": prompt}],
+                    "temperature": 0.2,
+                    "response_format": {"type": "json_object"},
+                },
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            content = data["choices"][0]["message"]["content"]
+            result = json.loads(content)
+            result.setdefault("suggested_refund_percent", 0)
+            result.setdefault("suggested_resolution", "partial_refund")
+            result.setdefault("reason", "AI仲裁分析完成")
+            result.setdefault("match_score", 50)
+            logger.info(f"[AI Arbitration] resolution={result['suggested_resolution']}, refund={result['suggested_refund_percent']}%")
+            return result
+    except Exception as e:
+        logger.error(f"[AI Arbitration] API call failed: {e}, falling back to mock")
+        return _mock_arbitration(
+            demand_title=demand_title,
+            demand_description=demand_description,
+            delivery_content=delivery_content,
+            delivery_url=delivery_url,
+            reject_reason=reject_reason,
+            category=category,
+        )

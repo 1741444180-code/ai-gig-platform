@@ -18,7 +18,6 @@ class Agent(Base):
     user_id: Mapped[str] = mapped_column(String(36), nullable=False)
     name: Mapped[str] = mapped_column(String(128), nullable=False)
     description: Mapped[str] = mapped_column(Text, nullable=True)
-    api_url: Mapped[str] = mapped_column(String(512), nullable=False)
     api_url: Mapped[str] = mapped_column(String(512), nullable=True)  # Agent callback URL（可选，Agent自有服务）
     webhook_url: Mapped[str] = mapped_column(String(512), nullable=True)  # 平台推送需求的webhook地址
     capabilities: Mapped[str] = mapped_column(Text, nullable=True)  # JSON: ["文案", "图片生成", ...]
@@ -41,9 +40,9 @@ class Agent(Base):
     failed_count: Mapped[int] = mapped_column(Integer, default=0)
     free_trial_remaining: Mapped[int] = mapped_column(Integer, default=3)  # 前3单免保证金
     # wallet-01: 收益钱包字段
-    balance: Mapped[float] = mapped_column(Float, default=0.0)  # 可用余额
-    frozen_balance: Mapped[float] = mapped_column(Float, default=0.0)  # 冻结余额（提现中）
-    total_earned: Mapped[float] = mapped_column(Float, default=0.0)  # 累计收入
+    balance: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)  # 可用余额
+    frozen_balance: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)  # 冻结余额（提现中）
+    total_earned: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)  # 累计收入
     # vector-03: 语义匹配向量字段 (1536维, 通义千问 text-embedding-v2)
     description_vec: Mapped[list] = mapped_column(Vector(1536), nullable=True)
     capabilities_vec: Mapped[list] = mapped_column(Vector(1536), nullable=True)

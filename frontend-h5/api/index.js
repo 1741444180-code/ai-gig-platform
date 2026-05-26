@@ -50,20 +50,53 @@ function request({ url, method = 'GET', data, header = {}, needAuth = false }) {
   })
 }
 
+/**
+ * 统一请求封装（使用 Agent API Key Bearer 认证）
+ * 用于 Agent 端接口，Authorization 头传 Bearer ak_xxx
+ */
+function requestWithApiKey({ url, method = 'GET', data, header = {}, apiKey }) {
+  return new Promise((resolve, reject) => {
+    const headers = { 'Content-Type': 'application/json', ...header }
+    if (apiKey) {
+      headers['Authorization'] = `Bearer ${apiKey}`
+    }
+
+    uni.request({
+      url: `${API_BASE}${url}`,
+      method,
+      data,
+      header: headers,
+      success(res) {
+        if (res.statusCode >= 200 && res.statusCode < 300) {
+          resolve(res.data)
+        } else {
+          const msg = res.data?.detail || '请求失败'
+          reject(new Error(msg))
+        }
+      },
+      fail(err) {
+        reject(err)
+      },
+    })
+  })
+}
+
 // ==================== 认证模块 ====================
+// 后端 auth 路由 prefix="/auth"，注册在 v1/__init__.py
+// POST /auth/send-code | POST /auth/login | POST /auth/refresh | GET /auth/me
 
 export const auth = {
-  /** 发送手机验证码 (MVP阶段验证码固定为 123456) */
+  /** 发送手机验证码 */
   sendPhoneCode(phone) {
-    return request({ url: '/auth/phone/send_code', method: 'POST', data: { phone } })
+    return request({ url: '/auth/send-code', method: 'POST', data: { phone } })
   },
 
-  /** 手机号登录 */
+  /** 手机号+验证码登录 (字段名 sms_code) */
   phoneLogin(phone, verifyCode) {
     return request({
-      url: '/auth/phone/login',
+      url: '/auth/login',
       method: 'POST',
-      data: { phone, verify_code: verifyCode },
+      data: { phone, sms_code: verifyCode },
     })
   },
 
@@ -72,105 +105,296 @@ export const auth = {
     return request({ url: '/auth/me', method: 'GET', needAuth: true })
   },
 
-  /** 更新用户信息 */
-  updateMe(data) {
-    return request({ url: '/auth/me', method: 'PUT', data, needAuth: true })
+  /** Token刷新 */
+  refreshToken(refreshToken) {
+    return request({
+      url: '/auth/refresh',
+      method: 'POST',
+      data: { refresh_token: refreshToken },
+    })
   },
 }
 
-// ==================== 需求模块（后端路径: /requirements/） ====================
+// ==================== 需求模块（后端路径: /demands/） ====================
+// 后端 demands 路由 prefix="/demands"
+// POST /demands/ | GET /demands/ | GET /demands/{id} | PUT /demands/{id} | POST /demands/{id}/cancel | POST /demands/{id}/match | GET /demands/{id}/matching
 
 export const demands = {
-  /** 创建需求 */
+  /** 创建需求 (含AI结构化) */
   create(data) {
-    return request({ url: '/requirements/', method: 'POST', data, needAuth: true })
+    return request({ url: '/demands/', method: 'POST', data, needAuth: true })
   },
 
-  /** 获取需求列表 */
+  /** 获取需求列表 (支持 category/status/min_budget/max_budget/keyword/page/page_size) */
   list(params = {}) {
-    return request({ url: '/requirements/', method: 'GET', data: params, needAuth: false })
+    return request({ url: '/demands/', method: 'GET', data: params, needAuth: true })
   },
 
   /** 获取需求详情 */
   get(id) {
-    return request({ url: `/requirements/${id}`, method: 'GET', needAuth: false })
+    return request({ url: `/demands/${id}`, method: 'GET', needAuth: true })
+  },
+
+  /** 编辑需求 */
+  update(id, data) {
+    return request({ url: `/demands/${id}`, method: 'PUT', data, needAuth: true })
+  },
+
+  /** 取消需求 */
+  cancel(id) {
+    return request({ url: `/demands/${id}/cancel`, method: 'POST', needAuth: true })
+  },
+
+  /** 手动触发撮合匹配 */
+  triggerMatch(id) {
+    return request({ url: `/demands/${id}/match`, method: 'POST', needAuth: true })
+  },
+
+  /** 查看匹配Agent列表 */
+  getMatches(id) {
+    return request({ url: `/demands/${id}/matching`, method: 'GET', needAuth: true })
   },
 }
 
-// ==================== 订单模块 ====================
+// ==================== 订单模块（后端路径: /orders/） ====================
+// 后端 orders 路由 prefix="/orders"，使用 get_current_agent (API Key Bearer)
+// 用户端也走 /orders/，使用 get_current_user (JWT Bearer)
+// 用户端: GET /orders/ | GET /orders/{id}
+// Agent端: POST /orders/{id}/accept | POST /orders/{id}/deliver | POST /orders/{id}/cancel | GET /agents/orders
+// 验收端: POST /orders/{id}/accept-delivery | POST /orders/{id}/reject-delivery | POST /orders/{id}/redeliver | GET /orders/{id}/timeline
 
 export const orders = {
-  /** 获取我的订单列表 */
+  /** 用户端：获取我的订单列表 */
   listMy(params = {}) {
     return request({ url: '/orders/', method: 'GET', data: params, needAuth: true })
   },
 
-  /** 获取订单详情 */
+  /** 用户端：获取订单详情 */
   get(id) {
     return request({ url: `/orders/${id}`, method: 'GET', needAuth: true })
   },
 
-  /** 查询订单状态 */
-  getStatus(id) {
-    return request({ url: `/orders/${id}/status`, method: 'GET', needAuth: true })
+  /** 用户端：验收通过 */
+  acceptDelivery(id) {
+    return request({ url: `/orders/${id}/accept-delivery`, method: 'POST', needAuth: true })
   },
 
-  /** 确认验收 */
-  confirm(id) {
-    return request({ url: `/orders/${id}/confirm`, method: 'POST', needAuth: true })
+  /** 用户端：拒绝验收 */
+  rejectDelivery(id, reason) {
+    return request({ url: `/orders/${id}/reject-delivery`, method: 'POST', data: { reason }, needAuth: true })
   },
 
-  /** 拒绝验收 */
-  reject(id, reason) {
-    return request({ url: `/orders/${id}/reject`, method: 'POST', data: { reason }, needAuth: true })
+  /** 用户端：查看订单时间线 */
+  getTimeline(id) {
+    return request({ url: `/orders/${id}/timeline`, method: 'GET', needAuth: true })
+  },
+
+  // Agent端（需用 API Key 认证，不走 JWT）
+  /** Agent端：接单 (需 API Key Bearer) */
+  acceptByAgent(orderId, data, apiKey) {
+    return requestWithApiKey({
+      url: `/orders/${orderId}/accept`,
+      method: 'POST',
+      data,
+      apiKey,
+    })
+  },
+
+  /** Agent端：交付 (需 API Key Bearer) */
+  deliverByAgent(orderId, data, apiKey) {
+    return requestWithApiKey({
+      url: `/orders/${orderId}/deliver`,
+      method: 'POST',
+      data,
+      apiKey,
+    })
+  },
+
+  /** Agent端：取消接单 (需 API Key Bearer) */
+  cancelByAgent(orderId, apiKey) {
+    return requestWithApiKey({
+      url: `/orders/${orderId}/cancel`,
+      method: 'POST',
+      data: {},
+      apiKey,
+    })
+  },
+
+  /** Agent端：查询自己的订单列表 (需 API Key Bearer) */
+  listByAgent(params = {}, apiKey) {
+    return requestWithApiKey({
+      url: '/agents/orders',
+      method: 'GET',
+      data: params,
+      apiKey,
+    })
+  },
+
+  /** Agent端：查询订单详情 (需 API Key Bearer) */
+  getByAgent(orderId, apiKey) {
+    return requestWithApiKey({
+      url: `/agents/orders/${orderId}`,
+      method: 'GET',
+      apiKey,
+    })
   },
 }
 
 // ==================== Agent模块 ====================
 
 export const agents = {
-  /** 注册Agent能力卡 */
+  /** 注册Agent能力卡 (agent-04) */
   register(data) {
     return request({ url: '/agents/register', method: 'POST', data, needAuth: true })
   },
 
-  /** 获取我的Agent信息 */
-  getMe() {
+  /** 获取我的Agent列表 */
+  getMyAgents() {
     return request({ url: '/agents/me', method: 'GET', needAuth: true })
   },
 
-  /** 更新Agent能力卡 */
+  /** 获取所有Agent列表 */
+  list() {
+    return request({ url: '/agents/', method: 'GET', needAuth: true })
+  },
+
+  /** 获取Agent详情 */
+  get(agentId) {
+    return request({ url: `/agents/${agentId}`, method: 'GET', needAuth: true })
+  },
+
+  /** 更新Agent能力卡 (agent-05) PUT /agents/profile */
   updateMe(data) {
-    return request({ url: '/agents/me', method: 'PUT', data, needAuth: true })
+    return request({ url: '/agents/profile', method: 'PUT', data, needAuth: true })
   },
 
-  /** 切换自动接单开关 */
-  toggleAutoAccept() {
-    return request({ url: '/agents/me/toggle_auto_accept', method: 'POST', needAuth: true })
+  /** Agent端：获取自己的订单列表 */
+  getOrders(params = {}, apiKey) {
+    return requestWithApiKey({ url: '/agents/orders', method: 'GET', data: params, apiKey })
   },
 
-  /** Agent接单工作台 */
-  getWorkbench(params = {}) {
-    return request({ url: '/agents/orders', method: 'GET', data: params, needAuth: true })
+  /** Agent端：获取订单详情 */
+  getOrderDetail(orderId, apiKey) {
+    return requestWithApiKey({ url: `/agents/orders/${orderId}`, method: 'GET', apiKey })
   },
 
-  /** 外部Agent通过API Key接单 */
-  acceptOrder(apiKey, data) {
-    return request({
-      url: '/agents/api/accept_order',
-      method: 'POST',
-      data: { api_key: apiKey, ...data },
-    })
+  /** Agent端：接单 */
+  acceptOrder(orderId, data, apiKey) {
+    return requestWithApiKey({ url: `/agents/orders/${orderId}/accept`, method: 'POST', data, apiKey })
   },
 
-  /** 外部Agent提交交付物 */
-  submitDelivery(apiKey, data) {
-    return request({
-      url: '/agents/api/submit_delivery',
-      method: 'POST',
-      data: { api_key: apiKey, ...data },
-    })
+  /** Agent端：交付 */
+  deliverOrder(orderId, data, apiKey) {
+    return requestWithApiKey({ url: `/agents/orders/${orderId}/deliver`, method: 'POST', data, apiKey })
+  },
+
+  /** Agent端：取消接单 */
+  cancelOrder(orderId, apiKey) {
+    return requestWithApiKey({ url: `/agents/orders/${orderId}/cancel`, method: 'POST', data: {}, apiKey })
+  },
+
+  /** 查看Agent API Key列表 (脱敏) */
+  listKeys() {
+    return request({ url: '/agents/keys', method: 'GET', needAuth: true })
+  },
+
+  /** 轮换API Key */
+  rotateKey() {
+    return request({ url: '/agents/keys/rotate', method: 'POST', needAuth: true })
+  },
+
+  /** 撤销API Key */
+  revokeKey() {
+    return request({ url: '/agents/keys/revoke', method: 'POST', needAuth: true })
+  },
+
+  /** 配置自有Agent (管理员) */
+  configureOwnerAgent(agentId, data) {
+    return request({ url: `/agents/${agentId}/owner-config`, method: 'PUT', data, needAuth: true })
   },
 }
 
-export default { auth, demands, orders, agents }
+// ==================== 钱包模块 ====================
+
+export const wallet = {
+  /** 收益查询 */
+  getIncome() {
+    return request({ url: '/wallet/income', method: 'GET', needAuth: true })
+  },
+
+  /** 提现记录 */
+  getWithdrawals(params = {}) {
+    return request({ url: '/wallet/withdrawals', method: 'GET', data: params, needAuth: true })
+  },
+}
+
+// ==================== 管理后台模块 ====================
+
+export const admin = {
+  /** 数据看板 */
+  getDashboard() {
+    return request({ url: '/admin/dashboard', method: 'GET', needAuth: true })
+  },
+
+  /** 用户管理列表 */
+  getUsers(params = {}) {
+    return request({ url: '/admin/users', method: 'GET', data: params, needAuth: true })
+  },
+
+  /** 订单管理列表 */
+  getOrders(params = {}) {
+    return request({ url: '/admin/orders', method: 'GET', data: params, needAuth: true })
+  },
+
+  /** Agent管理列表 */
+  getAgents(params = {}) {
+    return request({ url: '/admin/agents', method: 'GET', data: params, needAuth: true })
+  },
+
+  /** 支付确认 */
+  confirmPayment(orderId) {
+    return request({ url: `/admin/payments/${orderId}/confirm`, method: 'POST', needAuth: true })
+  },
+
+  /** 强制放款 */
+  releaseOrder(orderId) {
+    return request({ url: `/admin/orders/${orderId}/release`, method: 'POST', needAuth: true })
+  },
+
+  /** 封禁用户 */
+  banUser(userId) {
+    return request({ url: `/admin/users/${userId}/ban`, method: 'POST', needAuth: true })
+  },
+
+  /** 解封用户 */
+  unbanUser(userId) {
+    return request({ url: `/admin/users/${userId}/unban`, method: 'POST', needAuth: true })
+  },
+
+  /** 强制取消订单 */
+  cancelOrder(orderId) {
+    return request({ url: `/admin/orders/${orderId}/cancel`, method: 'POST', needAuth: true })
+  },
+
+  /** 支付列表（待确认） */
+  getPayments(params = {}) {
+    return request({ url: '/admin/payments', method: 'GET', data: params, needAuth: true })
+  },
+
+  /** 拒绝支付 */
+  rejectPayment(paymentId) {
+    return request({ url: `/admin/payments/${paymentId}/reject`, method: 'POST', needAuth: true })
+  },
+
+  /** 争议订单列表 */
+  getDisputes(params = {}) {
+    return request({ url: '/admin/disputes', method: 'GET', data: params, needAuth: true })
+  },
+
+  /** 裁决争议 */
+  resolveDispute(disputeId, data) {
+    return request({ url: `/admin/disputes/${disputeId}/resolve`, method: 'POST', data, needAuth: true })
+  },
+}
+
+export default { auth, demands, orders, agents, wallet, admin }

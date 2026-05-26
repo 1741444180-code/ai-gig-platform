@@ -34,6 +34,7 @@ class Settings(BaseSettings):
     qwen_api_key: str = ""                       # alias used by ai_service.py
     ai_model: str = "qwen-plus"
     qwen_model: str = "qwen-plus"               # alias used by ai_service.py
+    dashscope_base_url: str = "https://coding.dashscope.aliyuncs.com/v1"  # OpenAI-compatible endpoint
 
     # ═══════════════════════════════════════════════════════════
     # 平台业务配置
@@ -113,3 +114,6 @@ def get_settings() -> Settings:
     if _settings is None:
         _settings = Settings()
     return _settings
+
+# Module-level singleton for direct import
+settings: Settings = get_settings()

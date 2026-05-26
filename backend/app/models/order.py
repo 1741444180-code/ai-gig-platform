@@ -23,12 +23,12 @@ class Order(Base):
         String(20), default="pending"
     )  # pending | accepted | delivering | delivered | completed | cancelled | disputed | rejected
     # order-01: extended fields
-    eta_hours: Mapped[int] = mapped_column(Integer, default=24)
+    eta_hours: Mapped[int] = mapped_column(Integer, nullable=False, default=24)
     webhook_event_id: Mapped[str] = mapped_column(String(64), nullable=True)
-    delivery_attempts: Mapped[int] = mapped_column(Integer, default=0)
+    delivery_attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     arbitration_status: Mapped[str] = mapped_column(String(20), nullable=True)  # none | pending | resolved
     arbitration_result: Mapped[str] = mapped_column(Text, nullable=True)
-    reject_count: Mapped[int] = mapped_column(Integer, default=0)
+    reject_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     ai_quality_score: Mapped[int] = mapped_column(Integer, nullable=True)
     delivery_url: Mapped[str] = mapped_column(String(512), nullable=True)
     delivery_note: Mapped[str] = mapped_column(Text, nullable=True)

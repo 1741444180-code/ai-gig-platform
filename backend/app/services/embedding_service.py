@@ -8,7 +8,9 @@ import hashlib
 import logging
 from typing import List, Optional
 
-from app.config import settings
+from app.core.config import get_settings
+
+settings = get_settings()
 
 logger = logging.getLogger(__name__)
 
@@ -51,16 +53,16 @@ def _mock_embedding(text: str) -> List[float]:
 
 
 async def _dashscope_embedding(text: str) -> Optional[List[float]]:
-    """调用通义千问 text-embedding-v2 API。"""
+    """调用通义千问 text-embedding-v2 API (OpenAI 兼容协议)。"""
     try:
         import httpx
         
-        api_key = settings.dashscope_api_key
-        if not api_key:
-            logger.warning("DASHSCOPE_API_KEY not set, using mock embedding")
-            return _mock_embedding(text)
+        api_key = settings.QWEN_API_KEY
+        base_url = getattr(settings, 'dashscope_base_url', 'https://coding.dashscope.aliyuncs.com/v1')
         
-        url = f"{settings.dashscope_base_url}/services/embeddings/text-embedding/text-embedding"
+        if not api_key:
+            logger.warning("API_KEY not set, using mock embedding")
+            return _mock_embedding(text)
         
         headers = {
             "Authorization": f"Bearer {api_key}",
@@ -69,30 +71,25 @@ async def _dashscope_embedding(text: str) -> Optional[List[float]]:
         
         payload = {
             "model": "text-embedding-v2",
-            "input": {
-                "texts": [text],
-            },
-            "parameters": {
-                "text_type": "query",
-            },
+            "input": text,
         }
         
         async with httpx.AsyncClient(timeout=30.0) as client:
-            resp = await client.post(url, json=payload, headers=headers)
+            resp = await client.post(f"{base_url}/embeddings", json=payload, headers=headers)
             
             if resp.status_code != 200:
-                logger.error(f"DashScope API error: {resp.status_code} {resp.text}")
+                logger.error(f"Embedding API error: {resp.status_code} {resp.text}")
                 return _mock_embedding(text)
             
             data = resp.json()
-            embeddings = data.get("output", {}).get("embeddings", [])
+            embeddings = data.get("data", [])
             if embeddings:
                 return embeddings[0].get("embedding", [])
             
             return _mock_embedding(text)
             
     except Exception as e:
-        logger.error(f"DashScope embedding failed: {e}")
+        logger.error(f"Embedding API failed: {e}")
         return _mock_embedding(text)
 
 

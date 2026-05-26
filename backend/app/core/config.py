@@ -14,9 +14,9 @@ class Settings(BaseSettings):
     REDIS_URL: str = "redis://localhost:6379/0"
 
     # JWT
-    SECRET_KEY: str = "dev-secret-key-change-in-production"
-    ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7  # 7天
+    secret_key: str = "dev-secret-key-change-in-production"
+    algorithm: str = "HS256"
+    access_token_expire_minutes: int = 60 * 24 * 7  # 7天
 
     # 通义千问
     QWEN_API_KEY: str = ""
@@ -32,12 +32,15 @@ class Settings(BaseSettings):
     OSS_BUCKET: str = "aigig"
     OSS_ENDPOINT: str = "oss-cn-hangzhou.aliyuncs.com"
 
+    # 环境
+    app_env: str = "development"
+
     # 业务配置
     PLATFORM_FEE_RATE: float = 0.10  # 10%平台抽成
     FREE_ORDERS_COUNT: int = 3  # 前3单免保证金
     MAX_MODIFY_TIMES: int = 1  # 最大修改次数
 
-    model_config = {"env_file": ".env", "env_file_encoding": "utf-8", "extra": "ignore"}
+    model_config = {"env_prefix": "APP_", "env_file": ".env", "env_file_encoding": "utf-8", "extra": "ignore"}
 
 
 @lru_cache

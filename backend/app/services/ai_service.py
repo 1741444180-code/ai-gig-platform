@@ -8,12 +8,14 @@ import json
 import logging
 from typing import Optional
 
-from app.config import settings
+from app.core.config import get_settings
+
+settings = get_settings()
 
 logger = logging.getLogger(__name__)
 
 # 模拟模式标志
-MOCK_MODE = not bool(settings.dashscope_api_key)
+MOCK_MODE = not bool(settings.QWEN_API_KEY)
 
 
 # 需求分类提示词
@@ -94,17 +96,39 @@ def _mock_extract(text: str) -> dict:
 
 
 async def _ai_extract(text: str) -> dict:
-    """真实调用通义千问 API。"""
-    # TODO: 使用 dashscope SDK 调用通义千问
-    # from dashscope import Generation
-    # response = Generation.call(
-    #     model='qwen-plus',
-    #     prompt=build_extract_prompt(text),
-    #     api_key=settings.dashscope_api_key,
-    # )
-    # return json.loads(response.output.text)
-    logger.warning("AI API key not configured, falling back to mock")
-    return _mock_extract(text)
+    """真实调用通义千问 API (OpenAI 兼容协议)。"""
+    import httpx
+    
+    api_key = settings.QWEN_API_KEY
+    base_url = "https://dashscope.aliyuncs.com/compatible-mode/v1"
+    model = settings.QWEN_MODEL or "qwen-plus"
+    
+    try:
+        async with httpx.AsyncClient(timeout=30) as client:
+            resp = await client.post(
+                f"{base_url}/chat/completions",
+                headers={
+                    "Authorization": f"Bearer {api_key}",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "model": model,
+                    "messages": [
+                        {"role": "user", "content": build_extract_prompt(text)}
+                    ],
+                    "temperature": 0.1,
+                    "response_format": {"type": "json_object"},
+                },
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            content = data["choices"][0]["message"]["content"]
+            result = json.loads(content)
+            logger.info(f"[AI Extract] category={result.get('category')}, tags={result.get('tags')}")
+            return result
+    except Exception as e:
+        logger.error(f"[AI Extract] API call failed: {e}, falling back to mock")
+        return _mock_extract(text)
 
 
 def build_extract_prompt(text: str) -> str:

@@ -286,8 +286,8 @@ async def get_matched_agents(
 async def _do_match(demand_id: str):
     """后台任务：触发撮合."""
     try:
-        from app.db.engine import AsyncSessionLocal
-        async with AsyncSessionLocal() as db:
+        from app.db.engine import get_db as _get_db
+        async for db in _get_db():
             result = await db.execute(select(Demand).where(Demand.id == demand_id))
             demand = result.scalar_one_or_none()
             if demand and demand.status == "open":

@@ -11,41 +11,36 @@ os.environ["APP_REFRESH_TOKEN_EXPIRE_DAYS"] = "30"
 
 from datetime import datetime, timedelta, timezone
 from jose import jwt, JWTError
+import bcrypt
 
-# ─── Password hashing tests (passlib only, no fastapi/sqlalchemy) ───
-
-from passlib.context import CryptContext
-
-@pytest.fixture
-def pwd_context():
-    return CryptContext(schemes=["bcrypt"], deprecated="auto")
+# ─── Password hashing tests (bcrypt directly, no passlib) ───
 
 
-def test_hash_password_returns_string(pwd_context):
-    h = pwd_context.hash("MyP@ssw0rd")
+def test_hash_password_returns_string():
+    h = bcrypt.hashpw(b"MyP@ssw0rd", bcrypt.gensalt()).decode("utf-8")
     assert isinstance(h, str)
     assert len(h) > 20
 
 
-def test_hash_password_different_each_time(pwd_context):
-    h1 = pwd_context.hash("same_password")
-    h2 = pwd_context.hash("same_password")
+def test_hash_password_different_each_time():
+    h1 = bcrypt.hashpw(b"same_password", bcrypt.gensalt()).decode("utf-8")
+    h2 = bcrypt.hashpw(b"same_password", bcrypt.gensalt()).decode("utf-8")
     assert h1 != h2  # bcrypt salts
 
 
-def test_verify_password_correct(pwd_context):
-    h = pwd_context.hash("correct_password")
-    assert pwd_context.verify("correct_password", h) is True
+def test_verify_password_correct():
+    h = bcrypt.hashpw(b"correct_password", bcrypt.gensalt()).decode("utf-8")
+    assert bcrypt.checkpw(b"correct_password", h.encode("utf-8")) is True
 
 
-def test_verify_password_wrong(pwd_context):
-    h = pwd_context.hash("correct_password")
-    assert pwd_context.verify("wrong_password", h) is False
+def test_verify_password_wrong():
+    h = bcrypt.hashpw(b"correct_password", bcrypt.gensalt()).decode("utf-8")
+    assert bcrypt.checkpw(b"wrong_password", h.encode("utf-8")) is False
 
 
-def test_verify_password_empty_vs_real(pwd_context):
-    h = pwd_context.hash("not_empty")
-    assert pwd_context.verify("", h) is False
+def test_verify_password_empty_vs_real():
+    h = bcrypt.hashpw(b"not_empty", bcrypt.gensalt()).decode("utf-8")
+    assert bcrypt.checkpw(b"", h.encode("utf-8")) is False
 
 
 # ─── JWT token tests (jose only, no fastapi/sqlalchemy) ───
