@@ -1,17 +1,29 @@
+<template>
+  <view id="app"></view>
+</template>
+
 <script>
 export default {
   onLaunch: function () {
-    console.log('App Launch')
+    console.log('AIHub App Launch')
   },
   onShow: function () {
-    console.log('App Show')
+    console.log('AIHub App Show')
   },
   onHide: function () {
-    console.log('App Hide')
+    console.log('AIHub App Hide')
   },
 }
 </script>
 
 <style>
-/*每个页面公共css */
+/* 全局公共样式 */
+page {
+  background: #f5f5f5;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+view {
+  box-sizing: border-box;
+}
 </style>
