@@ -336,78 +336,82 @@ export const admin = {
     return request({ url: '/admin/dashboard', method: 'GET', needAuth: true })
   },
 
-  /** 用户管理列表 */
+  /** 用户管理列表 GET /admin/users */
   getUsers(params = {}) {
     return request({ url: '/admin/users', method: 'GET', data: params, needAuth: true })
   },
 
-  /** 订单管理列表 */
-  getOrders(params = {}) {
-    return request({ url: '/admin/orders', method: 'GET', data: params, needAuth: true })
+  /** 封禁用户 PUT /admin/users/{user_id}/ban */
+  banUser(userId, data = {}) {
+    return request({ url: `/admin/users/${userId}/ban`, method: 'PUT', data, needAuth: true })
   },
 
-  /** Agent管理列表 */
+  /** 解封用户 PUT /admin/users/{user_id}/unban */
+  unbanUser(userId) {
+    return request({ url: `/admin/users/${userId}/unban`, method: 'PUT', needAuth: true })
+  },
+
+  /** Agent管理列表 GET /admin/agents */
   getAgents(params = {}) {
     return request({ url: '/admin/agents', method: 'GET', data: params, needAuth: true })
   },
 
-  /** 支付确认 */
-  confirmPayment(orderId) {
-    return request({ url: `/admin/payments/${orderId}/confirm`, method: 'POST', needAuth: true })
+  /** 封禁Agent PUT /admin/agents/{agent_id}/ban */
+  banAgent(agentId, data = {}) {
+    return request({ url: `/admin/agents/${agentId}/ban`, method: 'PUT', data, needAuth: true })
   },
 
-  /** 强制放款 */
-  releaseOrder(orderId) {
-    return request({ url: `/admin/orders/${orderId}/release`, method: 'POST', needAuth: true })
+  /** 解封Agent PUT /admin/agents/{agent_id}/unban */
+  unbanAgent(agentId) {
+    return request({ url: `/admin/agents/${agentId}/unban`, method: 'PUT', needAuth: true })
   },
 
-  /** 封禁用户 */
-  banUser(userId) {
-    return request({ url: `/admin/users/${userId}/ban`, method: 'POST', needAuth: true })
+  /** 订单管理列表 GET /admin/orders */
+  getOrders(params = {}) {
+    return request({ url: '/admin/orders', method: 'GET', data: params, needAuth: true })
   },
 
-  /** 解封用户 */
-  unbanUser(userId) {
-    return request({ url: `/admin/users/${userId}/unban`, method: 'POST', needAuth: true })
+  /** 强制取消/完成订单 POST /admin/orders/{order_id}/force-action */
+  forceOrderAction(orderId, data) {
+    return request({ url: `/admin/orders/${orderId}/force-action`, method: 'POST', data, needAuth: true })
   },
 
-  /** 强制取消订单 */
-  cancelOrder(orderId) {
-    return request({ url: `/admin/orders/${orderId}/cancel`, method: 'POST', needAuth: true })
+  /** 仲裁列表 GET /admin/arbitration */
+  getArbitration(params = {}) {
+    return request({ url: '/admin/arbitration', method: 'GET', data: params, needAuth: true })
   },
 
-  /** 支付列表（待确认） */
+  /** 裁决仲裁 POST /admin/arbitration/{order_id}/resolve */
+  resolveArbitration(orderId, data) {
+    return request({ url: `/admin/arbitration/${orderId}/resolve`, method: 'POST', data, needAuth: true })
+  },
+
+  /** 支付列表 GET /admin/payments */
   getPayments(params = {}) {
     return request({ url: '/admin/payments', method: 'GET', data: params, needAuth: true })
   },
 
-  /** 拒绝支付 */
+  /** 确认支付 POST /admin/payments/{payment_id}/confirm */
+  confirmPayment(paymentId) {
+    return request({ url: `/admin/payments/${paymentId}/confirm`, method: 'POST', needAuth: true })
+  },
+
+  /** 拒绝支付 POST /admin/payments/{payment_id}/reject */
   rejectPayment(paymentId) {
     return request({ url: `/admin/payments/${paymentId}/reject`, method: 'POST', needAuth: true })
   },
 
-  /** 争议订单列表 */
-  getDisputes(params = {}) {
-    return request({ url: '/admin/disputes', method: 'GET', data: params, needAuth: true })
-  },
-
-  /** 裁决争议 */
-  resolveDispute(disputeId, data) {
-    return request({ url: `/admin/disputes/${disputeId}/resolve`, method: 'POST', data, needAuth: true })
-  },
-
-  /** 提现列表 */
+  /** 提现列表 GET /admin/withdraws */
   getWithdraws(params = {}) {
     return request({ url: '/admin/withdraws', method: 'GET', data: params, needAuth: true })
   },
 
-  /** 批准提现 */
+  /** 批准提现 POST /admin/withdraws/{withdraw_id}/approve */
   approveWithdraw(withdrawId) {
     return request({ url: `/admin/withdraws/${withdrawId}/approve`, method: 'POST', needAuth: true })
   },
 
-
-  /** 拒绝提现 */
+  /** 拒绝提现 POST /admin/withdraws/{withdraw_id}/reject */
   rejectWithdraw(withdrawId) {
     return request({ url: `/admin/withdraws/${withdrawId}/reject`, method: 'POST', needAuth: true })
   },
